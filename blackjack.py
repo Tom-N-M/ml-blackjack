@@ -85,7 +85,7 @@ class BlackjackEnv:
     self.played_cards.append(card)
     player_score = self.get_score(self.player_hand)
     if player_score > 21:
-      return None, -1, True
+      return self._get_state(), -1, True
     else:
       return self._get_state(), 0, False
 
@@ -107,4 +107,4 @@ class BlackjackEnv:
     else:
       reward = 0
 
-    return None, reward, True
+    return self._get_state(), reward, True
