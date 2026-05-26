@@ -8,7 +8,7 @@ class BlackjackEnv:
     random.shuffle(self.deck)
     self.played_cards = []
   
-  def shuffle_deck(self):
+  def _shuffle_deck(self):
     """Mischt das Deck neu"""
     self.deck = self.cards * 4 * 4
     random.shuffle(self.deck)
@@ -17,7 +17,7 @@ class BlackjackEnv:
   def start_round(self):
     """Teilt die Karten aus und gibt den Anfangszustand zurück."""
     if len(self.played_cards) > 0.75 * len(self.deck):
-      self.shuffle_deck()
+      self._shuffle_deck()
 
     self.player_hand = [self.deck.pop()]
     self.dealer_hand = [self.deck.pop()]
