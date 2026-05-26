@@ -13,52 +13,52 @@ Finally, start Jupyter:
 
     $ jupyter notebook
 
-## Mathematischer Hintergrund: Q-Learning im Detail
+## Mathematical and Theoretical Background: Deep Dive into Q-Learning
 
-Das Herzstück unseres Reinforcement Learning (RL) Agenten basiert auf **Tabular Q-Learning**, einem modellfreien, zeitlichen Differenzenverfahren (Temporal Difference Learning). Da der Zustandsraum beim Blackjack überschaubar ist, nutzt der Agent eine Tabelle (die sogenannte *Q-Tabelle*), um für jede Kombination aus Zustand und Aktion den erwarteten langfristigen Nutzen zu speichern.
+At the core of our Reinforcement Learning (RL) agent lies **Tabular Q-Learning**, a model-free, Temporal Difference (TD) learning algorithm. Since the state space in Blackjack is relatively compact, the agent maintains a look-up table (the *Q-table*) to store the expected long-term utility for every unique combination of states and actions.
 
-### Die Bellman-Gleichung für Q-Learning
+### The Bellman Optimality Equation for Q-Learning
 
-Nach jedem Schritt $t$, bei dem der Agent im Zustand $s$ die Aktion $a$ ausführt, eine Belohnung $r$ erhält und in den Folgezustand $s'$ übergeht, wird der entsprechende Eintrag in der Q-Tabelle nach folgender Update-Regel aktualisiert:
+After every time step $t$, where the agent transitions from state $s$ by executing action $a$, receives an immediate reward $r$, and moves into the subsequent state $s'$, the corresponding entry in the Q-table is updated using the following Bellman equation:
 
 $$Q(s, a) \leftarrow Q(s, a) + \alpha \left( r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right)$$
 
-#### Erklärung der mathematischen Komponenten:
+#### Breakdown of Mathematical Components:
 
-* **$Q(s, a)$**: Der aktuelle Qualitätswert (Q-Wert) für das Ausführen von Aktion $a$ im Zustand $s$. Er repräsentiert die erwartete kumulierte Belohnung bis zum Ende der Runde.
-* **$\alpha$ (Alpha - Lernrate)**: Bestimmt, wie stark neue Informationen den alten Q-Wert überschreiben. 
-    * Ein Wert von $\alpha = 0.01$ sorgt für ein stabiles, schrittweise Lernen über viele Episoden hinweg.
-* **$r$ (Reward / Belohnung)**: Das unmittelbare Feedback der Umgebung auf die gewählte Aktion.
-    * $+1.0$ bei einem Sieg
-    * $-1.0$ bei einer Niederlage (oder beim Überkaufen)
-    * $0.0$ bei einem Unentschieden (*Push*) oder wenn das Spiel nach einem *Hit* noch weiterläuft.
-* **$\gamma$ (Gamma - Diskontierungsfaktor)**: Gewichtet die Bedeutung zukünftiger Belohnungen im Vergleich zu sofortigen Belohnungen. 
-    * Da Blackjack ein episodisches Spiel mit sehr kurzen Runden ist und der Ausgang primär am Ende feststeht, setzen wir $\gamma = 1.0$ (keine Diskontierung zukünftiger Schritte).
-* **$\max_{a'} Q(s', a')$**: Der maximale Q-Wert, der im nächsten Zustand $s'$ durch die theoretisch beste Folgeaktion $a'$ erreicht werden kann.
-* **$\left( r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right)$**: Der sogenannte **Temporal Difference Error (TD-Error)**. Er misst die Diskrepanz zwischen der neuen Schätzung des Nutzens und dem alten Q-Wert.
+* **$Q(s, a)$**: The current quality value (Q-value) for executing action $a$ in state $s$. It estimates the expected cumulative future reward from this point until the end of the episode.
+* **$\alpha$ (Alpha - Learning Rate)**: Controls how much the newly acquired information overrides the old Q-value. 
+    * Setting $\alpha = 0.01$ ensures stable, incremental learning across hundreds of thousands of training episodes.
+* **$r$ (Reward)**: The immediate numerical scalar feedback returned by the environment as a direct consequence of the agent's action.
+    * $+1.0$ for a winning round.
+    * $-1.0$ for losing the round (or going *bust*).
+    * $0.0$ for a tie (*push*) or when the game continues after a *hit*.
+* **$\gamma$ (Gamma - Discount Factor)**: Determines the present value of future rewards compared to immediate ones ($0 \le \gamma \le 1$). 
+    * Because Blackjack is an episodic game with exceptionally short horizons, where the ultimate outcome is decided entirely at the final step, we set $\gamma = 1.0$ (no discounting of future steps).
+* **$\max_{a'} Q(s', a')$**: The maximum estimated Q-value achievable in the next state $s'$ by selecting the theoretically optimal subsequent action $a'$.
+* **$\left( r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right)$**: The **Temporal Difference Error (TD-Error)**. It quantifies the difference between the updated target estimation of utility and the current value in the table.
 
 ---
 
-### Aktionsauswahl: Die $\epsilon$-Greedy-Strategie
+### Action Selection: The $\epsilon$-Greedy Policy
 
-Um die Balance zwischen dem Entdecken neuer Strategien (**Exploration**) und dem Nutzen bereits gelernter Pfade (**Exploitation**) zu meistern, verwendet der Agent eine Epsilon-Greedy-Policy:
+To strike an optimal balance between discovering novel strategies (**Exploration**) and exploiting the agent's current knowledge base (**Exploitation**), an $\epsilon$-greedy policy is implemented:
 
 $$\pi(a | s) = \begin{cases} 
-\text{Zufällige Aktion } a \in \{0, 1\} & \text{mit Wahrscheinlichkeit } \epsilon \\ 
-\arg\max_{a} Q(s, a) & \text{mit Wahrscheinlichkeit } 1 - \epsilon 
+\text{Random action } a \in \{0, 1\} & \text{with probability } \epsilon \\ 
+\arg\max_{a} Q(s, a) & \text{with probability } 1 - \epsilon 
 \end{cases}$$
 
-* **Exploration ($\epsilon$)**: Mit einer Wahrscheinlichkeit von $\epsilon = 0.1$ wählt der Agent eine komplett zufällige Aktion (*Hit* oder *Stand*). Dies verhindert, dass sich der Agent zu früh auf eine suboptimale Strategie festlegt.
-* **Exploitation ($1 - \epsilon$)**: Mit einer Wahrscheinlichkeit von $90\%$ wählt der Agent die Aktion, die laut Q-Tabelle aktuell den höchsten Erwartungswert hat.
+* **Exploration ($\epsilon$)**: With a probability of $\epsilon = 0.1$, the agent chooses an action at random (*hit* or *stand*), regardless of historical performance. This prevents the policy from prematurely converging on a sub-optimal local minimum.
+* **Exploitation ($1 - \epsilon$)**: With a probability of $90\%$, the agent greedily selects the action that yields the highest expected value according to the Q-table.
 
 ---
 
-### Der Zustandsraum (State Space)
+### The State Space
 
-Der Zustand $s$ wird in jeder Spielphase als 3-Tupel an den Agenten übergeben:
+At each decision boundary, the current game configuration $s$ is formalized and exposed to the agent as a discrete 3-tuple:
 
-$$s = (\text{Score}_{\text{Spieler}}, \text{Karte}_{\text{Dealer}}, \text{Usable Ace})$$
+$$s = (\text{Player's Score}, \text{Dealer's Showing Card}, \text{Usable Ace})$$
 
-1.  **Spieler-Score**: Eine diskrete Zahl von $4$ bis $21$.
-2.  **Dealer-Karte**: Der sichtbare Wert der ersten Karte des Dealers ($2$ bis $11$).
-3.  **Usable Ace**: Ein binärer Wert ($0$ oder $1$). Ein As ist "nutzbar" (*usable*), wenn es als $11$ gezählt werden kann, ohne dass der Spieler die $21$ überschreitet.
+1.  **Player's Score**: An integer representing the current total card value ranging from $4$ to $21$.
+2.  **Dealer's Showing Card**: The value of the single face-up card held by the dealer ($2$ to $11$, where an Ace counts as $11$).
+3.  **Usable Ace**: A binary flag ($0$ or $1$). An Ace is considered "usable" if it can be valued at $11$ without causing the player's total score to exceed $21$.
