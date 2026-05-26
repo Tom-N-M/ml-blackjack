@@ -54,10 +54,23 @@ class BlackjackEnv:
     score = sum(self._get_card_value(card) for card in hand)
     return 'ace' in hand and score <= 21
 
-  def _get_card_counts(self):
-      high = sum(1 for c in self.played_cards if self._get_card_value(c) >= 10)
-      low = sum(1 for c in self.played_cards if self._get_card_value(c) <= 6)
-      return high, low
+  def _hi_lo_value(self, card):
+    value = self._get_card_value(card)
+    if value <= 6:
+        return +1
+    elif value <= 9:
+        return 0
+    else:
+        return -1
+
+  def _get_running_count(self):
+    return sum(self._hi_lo_value(c) for c in self.played_cards)
+
+  def _get_true_count(self):
+    remaining_cards = len(self.deck)
+    remaining_decks = max(remaining_cards / 52, 1e-6)
+    return self._get_running_count() / remaining_decks
+
 
   def _get_state(self):
     player_score = self.get_score(self.player_hand)
@@ -70,8 +83,8 @@ class BlackjackEnv:
         return base_state
 
     elif self.state_mode == "extended":
-        high, low = self._get_card_counts()
-        return base_state + (high, low)
+        true_count = self._get_true_count()
+        return base_state + (round(true_count, 2),)
 
     else:
         raise ValueError("Unknown state_mode")
