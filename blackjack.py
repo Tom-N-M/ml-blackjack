@@ -7,16 +7,17 @@ class BlackjackEnv:
     self.deck = self.cards * 4 * 4  # 4 Decks
     random.shuffle(self.deck)
     self.played_cards = []
-  
+
   def _shuffle_deck(self):
     """Mischt das Deck neu"""
     self.deck = self.cards * 4 * 4
     random.shuffle(self.deck)
     self.played_cards = []
 
-  def start_round(self):
+  def reset(self):
     """Teilt die Karten aus und gibt den Anfangszustand zurück."""
-    if len(self.played_cards) > 0.75 * len(self.deck):
+    self.max_deck_size = 52 * 4
+    if len(self.played_cards) > 0.75 * self.max_deck_size:
       self._shuffle_deck()
 
     self.player_hand = [self.deck.pop()]
@@ -100,7 +101,7 @@ class BlackjackEnv:
     player_score = self.get_score(self.player_hand)
     
     # Die vorher verdeckte Karte des Dealers wird jetzt offen gelegt
-    self.played_cards.append(self.dealer_hand[0])  
+    self.played_cards.append(self.dealer_hand[1])
     
     while self.get_score(self.dealer_hand) < 17:
         card = self.deck.pop()
