@@ -4,22 +4,28 @@ class BlackjackEnv:
   def __init__(self, state_mode="basic"):
     self.state_mode = state_mode
     self.cards = ['ace', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'jack', 'queen', 'king']
-    self.colors = ['hearts', 'diamonds', 'clubs', 'spades']
-    self.played_cards = []
-    self.reset()
-
-  def reset(self):
-    """Setzt das Spiel für eine neue Runde zurück."""
-    self.played_cards = []
-    self.deck = [card for color in self.colors for card in self.cards]
+    self.deck = self.cards * 4 * 4  # 4 Decks
     random.shuffle(self.deck)
-    
+    self.played_cards = []
+  
+  def shuffle_deck(self):
+    """Mischt das Deck neu"""
+    self.deck = self.cards * 4 * 4
+    random.shuffle(self.deck)
+    self.played_cards = []
+
+  def start_round(self):
+    """Teilt die Karten aus und gibt den Anfangszustand zurück."""
+    if len(self.played_cards) > 0.75 * len(self.deck):
+      self.shuffle_deck()
+
     self.player_hand = [self.deck.pop()]
     self.dealer_hand = [self.deck.pop()]
     self.player_hand.append(self.deck.pop())
     self.dealer_hand.append(self.deck.pop())
-    
-    self.played_cards.extend(self.player_hand + self.dealer_hand)
+
+    # Nur die erste Karte des Dealers wird offen gespielt
+    self.played_cards.extend(self.player_hand + self.dealer_hand[:1])  
     
     return self._get_state()
 
@@ -92,6 +98,9 @@ class BlackjackEnv:
   def stand(self):    
     """Der Spieler bleibt stehen, der Dealer spielt seine Hand aus."""
     player_score = self.get_score(self.player_hand)
+    
+    # Die vorher verdeckte Karte des Dealers wird jetzt offen gelegt
+    self.played_cards.append(self.dealer_hand[0])  
     
     while self.get_score(self.dealer_hand) < 17:
         card = self.deck.pop()
