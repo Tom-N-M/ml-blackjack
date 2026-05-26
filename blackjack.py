@@ -1,37 +1,68 @@
 import random
 
+
 class BlackjackEnv:
-  def __init__(self, state_mode="basic"):
+  def __init__(self, state_mode="basic", num_decks=4, stand_on_soft_17=True):
     self.state_mode = state_mode
+    self.num_decks = num_decks
+    self.stand_on_soft_17 = stand_on_soft_17
     self.cards = ['ace', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'jack', 'queen', 'king']
-    self.deck = self.cards * 4 * 4  # 4 Decks
-    random.shuffle(self.deck)
-    self.played_cards = []
+    self.max_deck_size = 52 * self.num_decks
+    self._shuffle_deck()
 
   def _shuffle_deck(self):
-    """Mischt das Deck neu"""
-    self.deck = self.cards * 4 * 4
+    """Reset and shuffle the shoe."""
+    self.deck = self.cards * 4 * self.num_decks
     random.shuffle(self.deck)
     self.played_cards = []
+    self.cards_dealt = 0
+
+  def _draw_card(self):
+    if not self.deck:
+      raise RuntimeError("Shoe is empty. Shuffle before starting the next round.")
+
+    self.cards_dealt += 1
+    return self.deck.pop()
+
+  def _mark_seen(self, card):
+    self.played_cards.append(card)
 
   def reset(self):
-    """Teilt die Karten aus und gibt den Anfangszustand zurück."""
-    self.max_deck_size = 52 * 4
-    if len(self.played_cards) > 0.75 * self.max_deck_size:
+    """Deal a new round and return the initial decision state."""
+    if len(self.deck) <= 0.25 * self.max_deck_size:
       self._shuffle_deck()
 
-    self.player_hand = [self.deck.pop()]
-    self.dealer_hand = [self.deck.pop()]
-    self.player_hand.append(self.deck.pop())
-    self.dealer_hand.append(self.deck.pop())
+    self.done = False
+    self.pending_reward = None
+    self.dealer_hole_revealed = False
 
-    # Nur die erste Karte des Dealers wird offen gespielt
-    self.played_cards.extend(self.player_hand + self.dealer_hand[:1])  
-    
+    player_first = self._draw_card()
+    dealer_upcard = self._draw_card()
+    player_second = self._draw_card()
+    dealer_hole = self._draw_card()
+
+    self.player_hand = [player_first, player_second]
+    self.dealer_hand = [dealer_upcard, dealer_hole]
+
+    for card in [player_first, dealer_upcard, player_second]:
+      self._mark_seen(card)
+
+    player_blackjack = self._is_natural_blackjack(self.player_hand)
+    dealer_blackjack = self._is_natural_blackjack(self.dealer_hand)
+    dealer_peeks = self._get_card_value(dealer_upcard) in (10, 11)
+
+    if dealer_peeks and dealer_blackjack:
+      self._reveal_dealer_hole()
+      self.done = True
+      self.pending_reward = 0 if player_blackjack else -1
+    elif player_blackjack:
+      self.done = True
+      self.pending_reward = 1
+
     return self._get_state()
 
   def _get_card_value(self, card):
-    """Gibt den Wert einer Karte zurück."""
+    """Return a card's blackjack value before ace reductions."""
     if card in ['jack', 'queen', 'king']:
       return 10
     elif card == 'ace':
@@ -39,95 +70,119 @@ class BlackjackEnv:
     else:
       return int(card)
 
-  def get_score(self, hand):
-    """Berechnet den Score einer Hand."""
+  def _score_and_soft(self, hand):
     score = sum(self._get_card_value(card) for card in hand)
-    aces = sum(1 for card in hand if card == 'ace')
-    
-    # Wenn score über 21 ist und es Asse gibt, zähle die Asse als 1 statt 11
-    while score > 21 and aces:
+    aces_as_eleven = sum(1 for card in hand if card == 'ace')
+
+    while score > 21 and aces_as_eleven:
       score -= 10
-      aces -= 1
+      aces_as_eleven -= 1
+
+    return score, aces_as_eleven > 0
+
+  def get_score(self, hand):
+    """Calculate a hand's best blackjack score."""
+    score, _ = self._score_and_soft(hand)
     return score
 
   def _has_usable_ace(self, hand):
-    score = sum(self._get_card_value(card) for card in hand)
-    return 'ace' in hand and score <= 21
+    _, soft = self._score_and_soft(hand)
+    return soft
+
+  def _is_natural_blackjack(self, hand):
+    return len(hand) == 2 and self.get_score(hand) == 21
+
+  def _reveal_dealer_hole(self):
+    if not self.dealer_hole_revealed:
+      self._mark_seen(self.dealer_hand[1])
+      self.dealer_hole_revealed = True
 
   def _hi_lo_value(self, card):
     value = self._get_card_value(card)
-    if value <= 6:
-        return +1
-    elif value <= 9:
-        return 0
-    else:
-        return -1
+    if 2 <= value <= 6:
+      return 1
+    if value >= 10:
+      return -1
+    return 0
 
-  def _get_running_count(self):
-    return sum(self._hi_lo_value(c) for c in self.played_cards)
-
-  def _get_true_count(self):
-    remaining_cards = len(self.deck)
-    remaining_decks = max(remaining_cards / 52, 1e-6)
-    return self._get_running_count() / remaining_decks
-
+  def _get_true_count_bucket(self):
+    running_count = sum(self._hi_lo_value(card) for card in self.played_cards)
+    decks_remaining = max(len(self.deck) / 52, 0.25)
+    true_count = round(running_count / decks_remaining)
+    return max(-5, min(5, true_count))
 
   def _get_state(self):
+    if getattr(self, "done", False):
+      return ("terminal",)
+
     player_score = self.get_score(self.player_hand)
     dealer_card = self._get_card_value(self.dealer_hand[0])
     usable_ace = self._has_usable_ace(self.player_hand)
-    
+
     base_state = (player_score, dealer_card, usable_ace)
 
     if self.state_mode == "basic":
-        return base_state
+      return base_state
 
-    elif self.state_mode == "extended":
-        true_count = self._get_true_count()
-        return base_state + (round(true_count, 2),)
+    if self.state_mode == "extended":
+      return base_state + (self._get_true_count_bucket(),)
 
-    else:
-        raise ValueError("Unknown state_mode")
+    raise ValueError("Unknown state_mode")
 
   def step(self, action):
-    """Führt die Aktion des Spielers aus und gibt den neuen Zustand, die Belohnung und ob das Spiel vorbei ist zurück."""
+    """Apply one player action and return state, reward, done."""
+    if self.done:
+      return self._get_state(), self.pending_reward, True
+
     if action == 0:  # Hit
       return self.hit()
     elif action == 1:  # Stand
       return self.stand()
     else:
-      raise ValueError("Ungültige Aktion. Aktion muss 0 (Hit) oder 1 (Stand) sein.")
+      raise ValueError("Invalid action. Use 0 (Hit) or 1 (Stand).")
 
   def hit(self):
-    """Fügt eine Karte zur Hand des Spielers hinzu."""
-    card = self.deck.pop()
+    """Add one visible card to the player's hand."""
+    card = self._draw_card()
     self.player_hand.append(card)
-    self.played_cards.append(card)
-    player_score = self.get_score(self.player_hand)
-    if player_score > 21:
-      return self._get_state(), -1, True
-    else:
-      return self._get_state(), 0, False
+    self._mark_seen(card)
 
-  def stand(self):    
-    """Der Spieler bleibt stehen, der Dealer spielt seine Hand aus."""
+    if self.get_score(self.player_hand) > 21:
+      self.done = True
+      self.pending_reward = -1
+      return self._get_state(), -1, True
+
+    return self._get_state(), 0, False
+
+  def _dealer_should_hit(self):
+    dealer_score, dealer_soft = self._score_and_soft(self.dealer_hand)
+    if dealer_score < 17:
+      return True
+    return dealer_score == 17 and dealer_soft and not self.stand_on_soft_17
+
+  def stand(self):
+    """Resolve the dealer hand and score the round."""
+    self._reveal_dealer_hole()
+
+    while self._dealer_should_hit():
+      card = self._draw_card()
+      self.dealer_hand.append(card)
+      self._mark_seen(card)
+
     player_score = self.get_score(self.player_hand)
-    
-    # Die vorher verdeckte Karte des Dealers wird jetzt offen gelegt
-    self.played_cards.append(self.dealer_hand[1])
-    
-    while self.get_score(self.dealer_hand) < 17:
-        card = self.deck.pop()
-        self.dealer_hand.append(card)
-        self.played_cards.append(card)
-    
     dealer_score = self.get_score(self.dealer_hand)
-    
-    if dealer_score > 21 or player_score > dealer_score:
+
+    if self.get_score(self.player_hand) > 21:
+      reward = -1
+    elif self._is_natural_blackjack(self.player_hand):
+      reward = 1
+    elif dealer_score > 21 or player_score > dealer_score:
       reward = 1
     elif player_score < dealer_score:
       reward = -1
     else:
       reward = 0
 
+    self.done = True
+    self.pending_reward = reward
     return self._get_state(), reward, True
