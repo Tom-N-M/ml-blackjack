@@ -2,7 +2,8 @@ Annahmen:
 Klassisches Casino-Blackjack mit Hole Card.
 Keine Side Bets.
 Keine Insurance.
-Keine Einsätze/Auszahlungen.
+Einsätze pro Runde.
+Auszahlungen als Netto-Gewinn oder Netto-Verlust.
 Kein Double.
 Kein Split.
 Spieler spielen gegen den Dealer.
@@ -18,6 +19,10 @@ Runde vorbereiten
 
 Deck oder Shoe bereitstellen.
 Falls nötig mischen.
+Einsatz für die Runde festlegen.
+Einsatz muss größer oder gleich Mindesteinsatz sein.
+Falls ein Maximaleinsatz gesetzt ist, darf der Einsatz ihn nicht überschreiten.
+Falls eine Bankroll gesetzt ist, darf der Einsatz die aktuelle Bankroll nicht überschreiten.
 Alle Spielerhände leeren.
 Dealer-Hand leeren.
 Alle Rundenergebnisse zurücksetzen.
@@ -66,8 +71,10 @@ Runde wird sofort ausgewertet.
 Für jede Spielerhand:
 Wenn Spielerhand Natural Blackjack hat:
 Ergebnis = Push
+Auszahlung = 0
 Sonst:
 Ergebnis = Lose
+Auszahlung = -Einsatz
 
 Danach endet die Runde sofort.
 
@@ -164,26 +171,34 @@ Jede Spielerhand wird einzeln gegen die Dealer-Hand verglichen.
 
 Wenn Spielerhand Bust ist:
 Ergebnis = Lose
+Auszahlung = -Einsatz
 
 Sonst wenn Spielerhand Natural Blackjack ist:
 Ergebnis = BlackjackWin
 Dieser Fall existiert hier nur, wenn der Dealer beim Peek keinen Blackjack hatte.
+Auszahlung = Einsatz * Blackjack-Auszahlungsfaktor
+Standard: 3:2, also Faktor 1.5
 
 Sonst wenn Dealer Bust ist:
 Ergebnis = Win
+Auszahlung = +Einsatz
 
 Sonst wenn Spielerwert größer als Dealerwert ist:
 Ergebnis = Win
+Auszahlung = +Einsatz
 
 Sonst wenn Spielerwert kleiner als Dealerwert ist:
 Ergebnis = Lose
+Auszahlung = -Einsatz
 
 Sonst:
 Ergebnis = Push
+Auszahlung = 0
 
 Runde beenden
 
 Alle Ergebnisse speichern.
+Bankroll um die Netto-Auszahlung aktualisieren, falls Bankroll-Tracking aktiv ist.
 Karten einsammeln.
 Runde ist abgeschlossen.
 

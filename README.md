@@ -28,10 +28,11 @@ $$Q(s, a) \leftarrow Q(s, a) + \alpha \left( r + \gamma \max_{a'} Q(s', a') - Q(
 * **$Q(s, a)$**: The current quality value (Q-value) for executing action $a$ in state $s$. It estimates the expected cumulative future reward from this point until the end of the episode.
 * **$\alpha$ (Alpha - Learning Rate)**: Controls how much the newly acquired information overrides the old Q-value. 
     * Setting $\alpha = 0.01$ ensures stable, incremental learning across hundreds of thousands of training episodes.
-* **$r$ (Reward)**: The immediate numerical scalar feedback returned by the environment as a direct consequence of the agent's action.
-    * $+1.0$ for a winning round.
-    * $-1.0$ for losing the round (or going *bust*).
+* **$r$ (Reward)**: The immediate numerical scalar feedback returned by the environment as a direct consequence of the agent's action. Rewards are net profit relative to the current bet.
+    * $+\text{bet}$ for a normal winning round.
+    * $-\text{bet}$ for losing the round (or going *bust*).
     * $0.0$ for a tie (*push*) or when the game continues after a *hit*.
+    * $+\text{bet} \times \text{blackjack_payout}$ for a natural Blackjack. The default payout multiplier is $1.5$.
 * **$\gamma$ (Gamma - Discount Factor)**: Determines the present value of future rewards compared to immediate ones ($0 \le \gamma \le 1$). 
     * Because Blackjack is an episodic game with exceptionally short horizons, where the ultimate outcome is decided entirely at the final step, we set $\gamma = 1.0$ (no discounting of future steps).
 * **$\max_{a'} Q(s', a')$**: The maximum estimated Q-value achievable in the next state $s'$ by selecting the theoretically optimal subsequent action $a'$.
@@ -62,3 +63,15 @@ $$s = (\text{Player's Score}, \text{Dealer's Showing Card}, \text{Usable Ace})$$
 1.  **Player's Score**: An integer representing the current total card value ranging from $4$ to $21$.
 2.  **Dealer's Showing Card**: The value of the single face-up card held by the dealer ($2$ to $11$, where an Ace counts as $11$).
 3.  **Usable Ace**: A binary flag ($0$ or $1$). An Ace is considered "usable" if it can be valued at $11$ without causing the player's total score to exceed $21$.
+
+### Bets and Bankroll
+
+Each round can be started with a specific bet:
+
+```python
+env = BlackjackEnv(bankroll=100, min_bet=1, max_bet=20)
+state = env.reset(bet=5)
+next_state, reward, done = env.step(1)
+```
+
+If no bet is passed to `reset`, the environment uses `min_bet`. When `bankroll` is set, finished rounds update `env.bankroll` by the net reward. The latest result is also available as `env.last_outcome` and `env.last_profit`.
