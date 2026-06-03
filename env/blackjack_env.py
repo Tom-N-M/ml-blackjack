@@ -31,6 +31,7 @@ class BlackjackEnv(gym.Env):
         self.player_hand = []
         self.dealer_hand = []
         self.running_count = 0
+        self._dealer_hole_revealed = False
         self._cards_dealt = 0
         self._cut_card = max(1, int((52 * self.num_decks) * self.penetration))
         self._rng = np.random.default_rng()
@@ -44,8 +45,9 @@ class BlackjackEnv(gym.Env):
         if self._needs_reshuffle():
             self._reset_shoe()
 
+        self._dealer_hole_revealed = False
         self.player_hand = [self._draw_card(), self._draw_card()]
-        self.dealer_hand = [self._draw_card(), self._draw_card()]
+        self.dealer_hand = [self._draw_card(), self._draw_card(update_count=False)]
 
         observation = self._get_observation()
         info = {
@@ -71,6 +73,7 @@ class BlackjackEnv(gym.Env):
                 reward = -1.0
                 terminated = True
         else:
+            self._reveal_dealer_hole_card()
             while self._dealer_should_hit():
                 self.dealer_hand.append(self._draw_card())
 
@@ -107,19 +110,26 @@ class BlackjackEnv(gym.Env):
         self._shoe = [rank for _ in range(self.num_decks) for rank in range(1, 14) for _ in range(4)]
         self._rng.shuffle(self._shoe)
         self.running_count = 0
+        self._dealer_hole_revealed = False
         self._cards_dealt = 0
 
     def _needs_reshuffle(self):
         return len(self._shoe) <= self._cut_card
 
-    def _draw_card(self):
+    def _draw_card(self, update_count=True):
         if not self._shoe:
             self._reset_shoe()
 
         card = self._shoe.pop()
         self._cards_dealt += 1
-        self.running_count += self._hi_lo_value(card)
+        if update_count:
+            self.running_count += self._hi_lo_value(card)
         return card
+
+    def _reveal_dealer_hole_card(self):
+        if not self._dealer_hole_revealed and len(self.dealer_hand) > 1:
+            self.running_count += self._hi_lo_value(self.dealer_hand[1])
+            self._dealer_hole_revealed = True
 
     @staticmethod
     def _card_value(card_rank):
@@ -173,5 +183,3 @@ class BlackjackEnv(gym.Env):
             [player_total, dealer_upcard, usable_ace, running_count, true_count, cards_remaining],
             dtype=np.float32,
         )
-
-    
