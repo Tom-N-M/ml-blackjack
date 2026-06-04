@@ -4,7 +4,10 @@ import numpy as np
 
 
 class BlackjackEnv(gym.Env):
-    """Blackjack environment with a finite shoe and count-tracking features."""
+    """Blackjack environment with a finite shoe and count-tracking features.
+
+    penetration is the fraction of a full shoe dealt before reshuffling.
+    """
 
     metadata = {"render_modes": ["human"]}
 
@@ -19,11 +22,12 @@ class BlackjackEnv(gym.Env):
         self.num_decks = num_decks
         self.penetration = penetration
         self.stand_on_soft_17 = stand_on_soft_17
+        self._shoe_size = 52 * self.num_decks
 
         self.action_space = spaces.Discrete(2)  # 0: Stand, 1: Hit
         self.observation_space = spaces.Box(
             low=np.array([0, 1, 0, -np.inf, -np.inf, 0], dtype=np.float32),
-            high=np.array([31, 10, 1, np.inf, np.inf, 52 * num_decks], dtype=np.float32),
+            high=np.array([31, 10, 1, np.inf, np.inf, self._shoe_size], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -33,7 +37,7 @@ class BlackjackEnv(gym.Env):
         self.running_count = 0
         self._dealer_hole_revealed = False
         self._cards_dealt = 0
-        self._cut_card = max(1, int((52 * self.num_decks) * self.penetration))
+        self._cut_card = max(1, int(self._shoe_size * (1.0 - self.penetration)))
         self._rng = np.random.default_rng()
         self._reset_shoe()
 
