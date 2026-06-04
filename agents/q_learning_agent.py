@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timezone
 from tqdm import tqdm
 import gymnasium as gym
 import numpy as np
@@ -32,12 +33,14 @@ class QLearningBlackjackAgent:
         self.lr = learning_rate
         self.discount_factor = discount_factor
 
+        self.initial_epsilon = initial_epsilon
         self.epsilon = initial_epsilon
         self.epsilon_decay = epsilon_decay
         self.final_epsilon = final_epsilon
 
         self.training_error: list[float] = []
         self.episode_rewards: list[float] = []
+        self.checkpoint_paths: list[Path] = []
 
     # ---------------------------------------------------------
     # Core RL methods
@@ -71,12 +74,9 @@ class QLearningBlackjackAgent:
         td_target = reward + self.discount_factor * best_next_q
         td_error = td_target - self.q_values[state][action]
 
-        # Q-Update
         self.q_values[state][action] += self.lr * td_error
+        return float(td_error)
 
-        # nur zurückgeben, NICHT speichern
-        return td_error
-        
     def decay_epsilon(self) -> None:
         self.epsilon = max(
             self.final_epsilon,
@@ -92,15 +92,38 @@ class QLearningBlackjackAgent:
         n_episodes: int,
         base_seed: int = 42,
         show_progress: bool = True,
+        start_episode: int = 0,
+        checkpoint_interval: int | None = None,
+        checkpoint_dir: Path | str | None = None,
+        checkpoint_label: str | None = None,
+        checkpoint_metadata: dict | None = None,
+        checkpoint_include_history: bool = False,
     ) -> list[float]:
         """
-        Train agent and return episode rewards + episode TD error.
+        Train agent and return episode rewards.
         """
 
         self.episode_rewards.clear()
         self.training_error = []
+        self.checkpoint_paths: list[Path] = []
 
-        episodes = range(n_episodes)
+        if start_episode < 0:
+            raise ValueError("start_episode must not be negative.")
+        if n_episodes < 0:
+            raise ValueError("n_episodes must not be negative.")
+
+        end_episode = start_episode + n_episodes
+
+        if checkpoint_interval is not None:
+            if checkpoint_interval <= 0:
+                raise ValueError("checkpoint_interval must be positive.")
+            if checkpoint_dir is None:
+                raise ValueError("checkpoint_dir is required when checkpoint_interval is set.")
+            checkpoint_dir = Path(checkpoint_dir)
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        label = checkpoint_label or self.__class__.__name__
+        episodes = range(start_episode, end_episode)
 
         if show_progress:
             episodes = tqdm(
@@ -110,19 +133,15 @@ class QLearningBlackjackAgent:
             )
 
         for episode in episodes:
-
             obs, _ = self.env.reset(seed=base_seed + episode)
 
             terminated = False
             truncated = False
-
             episode_reward = 0.0
             episode_td_errors = []
 
             while not (terminated or truncated):
-
                 action = self.get_action(obs)
-
                 next_obs, reward, terminated, truncated, _ = self.env.step(action)
 
                 td_error = self.update(
@@ -134,20 +153,27 @@ class QLearningBlackjackAgent:
                 )
 
                 episode_td_errors.append(td_error)
-
                 episode_reward += reward
                 obs = next_obs
 
-            # Episoden-Logging
             self.episode_rewards.append(episode_reward)
-
-            # 🔥 BEST PRACTICE: stabiler TD-Wert pro Episode
-            self.training_error.append(
-                np.mean(np.abs(episode_td_errors))
-            )
-
-            # epsilon decay
+            self.training_error.append(float(np.mean(np.abs(episode_td_errors))))
             self.decay_epsilon()
+
+            episode_number = episode + 1
+            if checkpoint_interval is not None and episode_number % checkpoint_interval == 0:
+                checkpoint_path = checkpoint_dir / f"{label}_episode_{episode_number}.pkl"
+                self.save(
+                    checkpoint_path,
+                    label=label,
+                    artifact_type="checkpoint",
+                    episode=episode_number,
+                    n_episodes=end_episode,
+                    base_seed=base_seed,
+                    metadata=checkpoint_metadata,
+                    include_history=checkpoint_include_history,
+                )
+                self.checkpoint_paths.append(checkpoint_path)
 
         return self.episode_rewards
 
@@ -155,29 +181,52 @@ class QLearningBlackjackAgent:
     # Save / Load
     # ---------------------------------------------------------
 
-    def save(self, artifact_path: Path, label: str, env=None) -> None:
+    def save(
+        self,
+        artifact_path: Path,
+        label: str,
+        env=None,
+        artifact_type: str = "final",
+        episode: int | None = None,
+        n_episodes: int | None = None,
+        base_seed: int | None = None,
+        metadata: dict | None = None,
+        include_history: bool = True,
+    ) -> None:
         """
         Speichert den Zustand des Agenten sauber als Pickle-Datei.
         Konvertiert das defaultdict in ein normales dict, um Serialisierungsfehler zu vermeiden.
         """
-        # Ordnerstruktur (z.B. ./models/) automatisch erstellen, falls nicht vorhanden
+        artifact_path = Path(artifact_path)
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # WICHTIG: defaultdict in ein Standard-dict konvertieren.
-        # Das entfernt die nicht-picklbare lambda-Funktion!
         clean_q_values = {k: np.array(v, dtype=np.float32) for k, v in self.q_values.items()}
+        saved_episode = episode if episode is not None else len(self.episode_rewards)
+        saved_n_episodes = n_episodes if n_episodes is not None else saved_episode
 
         artifact = {
             "label": label,
+            "artifact_type": artifact_type,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "episode": saved_episode,
+            "n_episodes": saved_n_episodes,
+            "base_seed": base_seed,
             "q_values": clean_q_values,
-            "training_error": list(self.training_error),
-            "episode_rewards": list(self.episode_rewards),
+            "q_state_count": len(clean_q_values),
+            "q_states": len(clean_q_values),
+            "training_error": list(self.training_error) if include_history else [],
+            "episode_rewards": list(self.episode_rewards) if include_history else [],
+            "training_error_tail": list(self.training_error[-1000:]),
+            "episode_rewards_tail": list(self.episode_rewards[-1000:]),
             "learning_rate": self.lr,
             "discount_factor": self.discount_factor,
             "epsilon": self.epsilon,
+            "initial_epsilon": self.initial_epsilon,
+            "final_epsilon": self.final_epsilon,
+            "epsilon_decay": self.epsilon_decay,
+            "metadata": metadata or {},
         }
 
-        # Falls eine Umgebung mit Statistik-Wrapper übergeben wurde, diese Queues sichern
         if env is not None:
             if hasattr(env, "return_queue") and env.return_queue:
                 artifact["episode_returns"] = list(env.return_queue)
@@ -187,29 +236,39 @@ class QLearningBlackjackAgent:
         with artifact_path.open("wb") as f:
             pickle.dump(artifact, f)
 
-    def load(self, artifact_path: Path) -> None:
+    def load(self, artifact_path: Path | str) -> dict:
         """
-        Lädt den gespeicherten Zustand des Agenten aus einem Artefakt
-        und stellt das defaultdict für das weitere Training wieder her.
+        Laedt den gespeicherten Zustand des Agenten aus einem Artefakt
+        und stellt das defaultdict fuer das weitere Training wieder her.
         """
+        artifact_path = Path(artifact_path)
+
         if not artifact_path.exists():
             raise FileNotFoundError(f"Kein Artefakt unter {artifact_path} gefunden.")
 
         with artifact_path.open("rb") as f:
             artifact = pickle.load(f)
 
-        # Hyperparameter und Historie wiederherstellen
+        self.loaded_artifact_metadata = {
+            key: value
+            for key, value in artifact.items()
+            if key != "q_values"
+        }
+
         self.lr = artifact["learning_rate"]
         self.discount_factor = artifact["discount_factor"]
+        self.initial_epsilon = artifact.get("initial_epsilon", self.initial_epsilon)
         self.epsilon = artifact["epsilon"]
-        self.training_error = artifact["training_error"]
-        self.episode_rewards = artifact["episode_rewards"]
+        self.final_epsilon = artifact.get("final_epsilon", self.final_epsilon)
+        self.epsilon_decay = artifact.get("epsilon_decay", self.epsilon_decay)
+        self.training_error = artifact.get("training_error") or artifact.get("training_error_tail", [])
+        self.episode_rewards = artifact.get("episode_rewards") or artifact.get("episode_rewards_tail", [])
 
-        # Q-Tabelle als defaultdict mit der ursprünglichen Lambda-Logik neu aufbauen
         self.q_values = defaultdict(
             lambda: np.zeros(self.env.action_space.n, dtype=np.float32)
         )
         
-        # Gelernte Werte in das defaultdict übertragen
         for k, v in artifact["q_values"].items():
             self.q_values[k] = np.array(v, dtype=np.float32)
+
+        return artifact
