@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.patches as mpatches  
 
 def get_basic_strategy_action(player_total: int, dealer_upcard: int, usable_ace: int) -> int:
     if usable_ace:
@@ -21,7 +22,10 @@ def extract_agent_data(agent, agent_type: str, player_total: int, dealer_upcard:
         running_count = int(np.clip(true_count * cards_remaining_clipped, -20, 20))
         state = (player_total, dealer_upcard, usable_ace, running_count, true_count, cards_remaining_clipped)
     
-    values = agent.q_values.get(state)
+    q_table = getattr(agent, "q_values", getattr(agent, "Q", None))
+    if q_table is None: return 0, [0.0, 0.0]
+    
+    values = q_table.get(state)
     if values is None: return 0, [0.0, 0.0]
     return int(np.argmax(values)), values
 
@@ -83,6 +87,38 @@ def plot_policy_and_q_values(agent, agent_name: str, split_agent_name_func, save
             ax.set_ylabel("Player Hand Total")
             ax.set_xlabel("Dealer Upcard")
             ax.grid(False)
+
+    patch_stick = mpatches.Patch(color='#e74c3c', label='Stick / Halten (S)')
+    patch_hit = mpatches.Patch(color='#2ecc71', label='Hit / Ziehen (H)')
+    patch_mismatch = mpatches.Patch(color='#d35400', label='Abweichung')
+    patch_match = mpatches.Patch(color='#27ae60', label='Konform')
+    
+    plt.tight_layout()
+    fig.subplots_adjust(
+        hspace=0.15,
+        wspace=0.05,
+        bottom=0.08
+    )
+
+    axs[0, 0].legend(
+        handles=[patch_stick, patch_hit],
+        loc="upper center",
+        bbox_to_anchor=(1.05, -0.12),
+        ncol=2,
+        fontsize=11,
+        frameon=False,
+        title="Aktionen"
+    )
+
+    axs[2, 0].legend(
+        handles=[patch_mismatch, patch_match],
+        loc="upper center",
+        bbox_to_anchor=(1.05, -0.12),
+        ncol=2,
+        fontsize=11,
+        frameon=False,
+        title="Strategie-Vergleich"
+    )
 
     tc_suffix = f"_tc_{true_count}" if agent_type == "counting" else ""
     save_fig_func(f"agent_policy_analysis_{agent_name}{tc_suffix}")
