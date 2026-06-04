@@ -58,7 +58,7 @@ class QLearningBlackjackAgent:
         reward: float,
         terminated: bool,
         next_obs,
-    ) -> None:
+    ) -> float:
         state = self.state_encoder(obs)
         next_state = self.state_encoder(next_obs)
 
@@ -71,16 +71,17 @@ class QLearningBlackjackAgent:
         td_target = reward + self.discount_factor * best_next_q
         td_error = td_target - self.q_values[state][action]
 
+        # Q-Update
         self.q_values[state][action] += self.lr * td_error
 
-        self.training_error.append(td_error)
-
+        # nur zurückgeben, NICHT speichern
+        return td_error
+        
     def decay_epsilon(self) -> None:
         self.epsilon = max(
             self.final_epsilon,
             self.epsilon - self.epsilon_decay,
         )
-
 
     # ---------------------------------------------------------
     # Training loop (removes notebook duplication)
@@ -93,16 +94,15 @@ class QLearningBlackjackAgent:
         show_progress: bool = True,
     ) -> list[float]:
         """
-        Train agent and return episode rewards.
+        Train agent and return episode rewards + episode TD error.
         """
 
         self.episode_rewards.clear()
+        self.training_error = []
 
         episodes = range(n_episodes)
 
         if show_progress:
-            # leave=False sorgt dafür, dass sich der Ladebalken nach dem 
-            # erfolgreichen Training selbst aufräumt und die Ausgabe nicht flutet.
             episodes = tqdm(
                 episodes,
                 desc=self.__class__.__name__,
@@ -110,23 +110,22 @@ class QLearningBlackjackAgent:
             )
 
         for episode in episodes:
-            obs, _ = self.env.reset(
-                seed=base_seed + episode
-            )
+
+            obs, _ = self.env.reset(seed=base_seed + episode)
 
             terminated = False
             truncated = False
 
             episode_reward = 0.0
+            episode_td_errors = []
 
             while not (terminated or truncated):
+
                 action = self.get_action(obs)
 
-                next_obs, reward, terminated, truncated, _ = (
-                    self.env.step(action)
-                )
+                next_obs, reward, terminated, truncated, _ = self.env.step(action)
 
-                self.update(
+                td_error = self.update(
                     obs,
                     action,
                     reward,
@@ -134,10 +133,20 @@ class QLearningBlackjackAgent:
                     next_obs,
                 )
 
+                episode_td_errors.append(td_error)
+
                 episode_reward += reward
                 obs = next_obs
 
+            # Episoden-Logging
             self.episode_rewards.append(episode_reward)
+
+            # 🔥 BEST PRACTICE: stabiler TD-Wert pro Episode
+            self.training_error.append(
+                np.mean(np.abs(episode_td_errors))
+            )
+
+            # epsilon decay
             self.decay_epsilon()
 
         return self.episode_rewards
