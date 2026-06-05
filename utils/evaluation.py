@@ -1,3 +1,4 @@
+# utils/evaluation.py
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,3 +106,67 @@ def plot_evaluation_metrics_with_cis(
     if save_fig_func:
         save_fig_func("final_evaluation_metrics_with_cis")
     plt.show()
+
+import numpy as np
+import pandas as pd
+from utils.env_utils import make_blackjack_env
+
+def evaluate_single_agent_parallel(agent_name, q_values, state_encoder, source_label, n_episodes, base_seed, progress_dict=None):
+    # Absolut sauberer Import, kein sys.modules-Hack unter Windows nötig!
+    env = make_blackjack_env(seed=base_seed, n_episodes=n_episodes)
+    
+    wins = losses = pushes = 0
+    action_counts = {0: 0, 1: 0}
+    sum_rewards = 0.0
+    sum_sq_rewards = 0.0
+
+    # Dynamisches Update-Intervall für den Fortschrittsbalken berechnen (z.B. alle 5%)
+    update_interval = max(1, n_episodes // 20)
+
+    for episode in range(n_episodes):
+        obs, _ = env.reset(seed=base_seed + episode)
+        terminated = False
+        truncated = False
+        episode_reward = 0.0
+
+        while not (terminated or truncated):
+            state = state_encoder(obs)
+            values = q_values.get(state)
+            action = int(np.argmax(values)) if values is not None else 0
+            
+            action_counts[action] = action_counts.get(action, 0) + 1
+            obs, reward, terminated, truncated, _ = env.step(action)
+            episode_reward += reward
+
+        if episode_reward > 0:
+            wins += 1
+        elif episode_reward < 0:
+            losses += 1
+        else:
+            pushes += 1
+
+        sum_rewards += episode_reward
+        sum_sq_rewards += episode_reward ** 2
+        
+        # Jetzt funktioniert der Balken sowohl bei 1.000 als auch bei 100.000 Episoden flüssig!
+        if progress_dict is not None and episode % update_interval == 0:
+            progress_dict[agent_name] = episode
+
+    total = wins + losses + pushes
+    mean_reward = sum_rewards / total if total else 0.0
+    var_reward = (sum_sq_rewards / total) - (mean_reward ** 2) if total else 0.0
+    std_reward = np.sqrt(max(0.0, var_reward))
+
+    if progress_dict is not None:
+        progress_dict[agent_name] = n_episodes
+
+    return agent_name, {
+        "source": source_label,
+        "episodes": total,
+        "win_rate": wins / total if total else 0.0,
+        "loss_rate": losses / total if total else 0.0,
+        "push_rate": pushes / total if total else 0.0,
+        "average_reward": mean_reward,
+        "std_reward": std_reward,
+        "action_distribution": {"stand": action_counts.get(0, 0), "hit": action_counts.get(1, 0)},
+    }
