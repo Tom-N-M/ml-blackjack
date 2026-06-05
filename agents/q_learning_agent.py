@@ -32,7 +32,7 @@ class QLearningBlackjackAgent:
         initial_epsilon: float,
         epsilon_decay: float,
         final_epsilon: float,
-        discount_factor: float = 0.95,
+        discount_factor: float = 0.99,
     ):
         self.env = env
         self.state_encoder = state_encoder
