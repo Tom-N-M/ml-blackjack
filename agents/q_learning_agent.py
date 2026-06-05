@@ -8,6 +8,17 @@ import pickle
 import sys
 from pathlib import Path
 
+class QValueFactory:
+
+    def __init__(self, action_shape: int):
+        self.action_shape = action_shape
+
+    def __call__(self):
+        """Wird aufgerufen, wenn ein neuer State im defaultdict abgefragt wird."""
+        return np.zeros(self.action_shape, dtype=np.float32)
+
+
+
 class QLearningBlackjackAgent:
     """
     Generic Q-learning agent for discrete-action Gym environments.
@@ -26,9 +37,9 @@ class QLearningBlackjackAgent:
         self.env = env
         self.state_encoder = state_encoder
 
-        self.q_values = defaultdict(
-            lambda: np.zeros(env.action_space.n, dtype=np.float32)
-        )
+        self.action_shape = env.action_space.n
+
+        self.q_values = defaultdict(QValueFactory(self.action_shape))
 
         self.lr = learning_rate
         self.discount_factor = discount_factor
@@ -84,7 +95,7 @@ class QLearningBlackjackAgent:
         )
 
     # ---------------------------------------------------------
-    # Training loop (removes notebook duplication)
+    # Training loop
     # ---------------------------------------------------------
     
     def train(
