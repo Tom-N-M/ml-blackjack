@@ -79,7 +79,7 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
     :param worker_func: Die Zielfunktion (z.B. train_single_agent)
     :param base_tasks: Liste von Tupeln mit Argumenten (OHNE das progress_dict)
     :param agent_names: Liste der Agenten-Namen für die Beschriftung
-    :param max_value_per_agent: Ziel-Episodenanzahl pro Agent (z.B. EPISODES_PER_SEED)
+    :param max_value_per_agent: Ziel-Episodenanzahl pro Agent
     :param title: Name der Operation im Gesamtbalken
     """
     def format_time(secs):
@@ -87,15 +87,14 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
 
     print(f"Initialisiere paralleles {title}-Dashboard...")
     
-    manager = Manager()
-    progress_dict = manager.dict()
-    for name in agent_names:
-        progress_dict[name] = 0
-        
+    # 1. Widgets initial bauen
     total_target = max_value_per_agent * len(agent_names)
-        
-    # Widgets bauen
-    overall_bar = widgets.IntProgress(value=0, min=0, max=total_target, description=f"{title} Gesamt:", style={'description_width': '140px', 'bar_color': '#28a745'}, layout=widgets.Layout(width='400px'))
+    overall_bar = widgets.IntProgress(
+        value=0, min=0, max=total_target, 
+        description=f"{title} Gesamt:", 
+        style={'description_width': '140px', 'bar_color': '#28a745'}, 
+        layout=widgets.Layout(width='400px')
+    )
     overall_label = widgets.Label(value="Warte auf Start...")
     widget_rows = [widgets.HBox([overall_bar, overall_label]), widgets.HTML("<hr style='margin: 10px 0; border: 1px solid #ccc;'>")]
     
@@ -107,33 +106,62 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
         
     display(widgets.VBox(widget_rows))
     
-    # Injektiere das progress_dict in alle Tasks am Ende des Tupels
-    final_tasks = [tuple(list(task) + [progress_dict]) for task in base_tasks]
+    # 2. Context Manager für sichere Ressourcen-Freigabe (Verhindert Zombie-Prozesse)
+    with Manager() as manager, Pool() as pool:
+        progress_dict = manager.dict()
+        for name in agent_names:
+            progress_dict[name] = 0
+            
+        # Injektiere das progress_dict in alle Tasks am Ende des Tupels
+        final_tasks = [tuple(list(task) + [progress_dict]) for task in base_tasks]
 
-    start_time = time.time()
-    with Pool() as pool:
+        start_time = time.time()
         async_result = pool.starmap_async(worker_func, final_tasks)
         
+        # 3. Live-Update Loop
         while not async_result.ready():
             elapsed = time.time() - start_time
             total_done = 0
+            active_agent_etas = []
             
             for name in agent_names:
                 curr = progress_dict.get(name, 0)
                 total_done += curr
                 bars[name].value = curr
+                
                 pct = curr / max_value_per_agent
-                eta = f"Restzeit: {format_time((elapsed / pct) - elapsed)}" if pct > 0 and curr < max_value_per_agent else "Fertig!" if curr >= max_value_per_agent else "Berechne..."
-                labels[name].value = f"{pct*100:.1f}% ({curr:,}/{max_value_per_agent:,}) | {eta}"
+                
+                if curr >= max_value_per_agent:
+                    rem = 0
+                    eta_str = "Fertig!"
+                elif pct > 0:
+                    rem = (elapsed / pct) - elapsed
+                    eta_str = f"Restzeit: {format_time(rem)}"
+                else:
+                    rem = None  # Noch nicht gestartet / Berechnet noch
+                    eta_str = "Berechne..."
+                
+                labels[name].value = f"{pct*100:.1f}% ({curr:,}/{max_value_per_agent:,}) | {eta_str}"
+                
+                if rem is not None:
+                    active_agent_etas.append(rem)
             
+            # Gesamtbalken aktualisieren
             overall_bar.value = total_done
             o_pct = total_done / total_target
-            o_eta = f"Gesamt-Restzeit: {format_time((elapsed / o_pct) - elapsed)}" if o_pct > 0 else "Berechne..."
+            
+            if active_agent_etas:
+                max_remaining = max(active_agent_etas)
+                o_eta = f"Gesamt-Restzeit: {format_time(max_remaining)}"
+            else:
+                o_eta = "Berechne..."
+                
             overall_label.value = f"{o_pct*100:.1f}% ({total_done:,}/{total_target:,}) | {o_eta}"
             
-            time.sleep(1.0)
+            # OPTIMIERUNG: Wartet maximal 1 Sekunde, bricht aber SOFORT ab, wenn alle fertig sind
+            async_result.wait(timeout=1.0)
             
-        # Finaler Clean-up der UI
+        # 4. Finaler Clean-up der UI nach Beendigung
         for name in agent_names:
             bars[name].value = max_value_per_agent
             labels[name].value = f"100.0% ({max_value_per_agent:,}) | Fertig!"
