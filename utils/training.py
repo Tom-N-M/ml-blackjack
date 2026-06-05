@@ -20,10 +20,9 @@ class ProgressWrapper(gym.Wrapper):
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
-        # Wenn eine Runde Blackjack vorbei ist
         if terminated or truncated:
             self.episode_count += 1
-            # Nicht bei jedem Schritt funken (Performance!), sondern alle 5000 Runden
+            # Performance-Optimierung: Nur alle 5000 Runden funken
             if self.episode_count % 5000 == 0:
                 self.progress_dict[self.agent_name] = self.episode_count
         return obs, reward, terminated, truncated, info
@@ -40,7 +39,7 @@ def train_single_agent(
         run_id,
         progress_dict=None
     ):
-    # Nutzen jetzt die zentrale Factory-Funktion statt Hardcoding!
+    # Nutzen die zentrale Factory-Funktion
     env = make_blackjack_env(seed=seed, n_episodes=episodes_per_seed)
 
     start_episode = 0
@@ -52,11 +51,12 @@ def train_single_agent(
         env = ProgressWrapper(env, name, progress_dict, start_episode)
 
     agent.env = env
-    # Die Seeding-Logik ist bereits in make_blackjack_env abgedeckt!
     
     episodes_to_train = max(0, episodes_per_seed - start_episode)
     if episodes_to_train == 0:
-        if progress_dict is not None: progress_dict[name] = episodes_per_seed
+        if progress_dict is not None: 
+            progress_dict[name] = episodes_per_seed
+        agent.env = None # BUGFIX: Verhindert Deadlock, falls nichts zu trainieren ist
         return name, agent
 
     agent.train(
@@ -69,25 +69,28 @@ def train_single_agent(
         checkpoint_metadata={"agent_name": name, "agent_type": agent_type, "run_id": run_id, "seed": seed, "start_episode": start_episode, "target_episode": episodes_per_seed},
     )
     
-    if progress_dict is not None: progress_dict[name] = episodes_per_seed
+    if progress_dict is not None: 
+        progress_dict[name] = episodes_per_seed
+    
+    # =========================================================================
+    # CRITICAL BUGFIX: PIPELINE-DEADLOCK VERHINDERN
+    # =========================================================================
+    # Wir müssen das env-Objekt (und damit den verknüpften Manager-Proxy) löschen,
+    # da komplexe interprozessuale Objekte beim Rücktransport über die Pipe 
+    # die Serialisierung blockieren.
+    agent.env = None 
+    
     return name, agent
 
 def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_per_agent, title="Prozesse"):
     """
     Führt Aufgaben parallel aus und zeichnet ein Live-Dashboard im Jupyter Notebook.
-    
-    :param worker_func: Die Zielfunktion (z.B. train_single_agent)
-    :param base_tasks: Liste von Tupeln mit Argumenten (OHNE das progress_dict)
-    :param agent_names: Liste der Agenten-Namen für die Beschriftung
-    :param max_value_per_agent: Ziel-Episodenanzahl pro Agent
-    :param title: Name der Operation im Gesamtbalken
     """
     def format_time(secs):
         return "--:--" if secs < 0 else str(timedelta(seconds=int(secs)))
 
     print(f"Initialisiere paralleles {title}-Dashboard...")
     
-    # 1. Widgets initial bauen
     total_target = max_value_per_agent * len(agent_names)
     overall_bar = widgets.IntProgress(
         value=0, min=0, max=total_target, 
@@ -106,19 +109,16 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
         
     display(widgets.VBox(widget_rows))
     
-    # 2. Context Manager für sichere Ressourcen-Freigabe (Verhindert Zombie-Prozesse)
     with Manager() as manager, Pool() as pool:
         progress_dict = manager.dict()
         for name in agent_names:
             progress_dict[name] = 0
             
-        # Injektiere das progress_dict in alle Tasks am Ende des Tupels
         final_tasks = [tuple(list(task) + [progress_dict]) for task in base_tasks]
 
         start_time = time.time()
         async_result = pool.starmap_async(worker_func, final_tasks)
         
-        # 3. Live-Update Loop
         while not async_result.ready():
             elapsed = time.time() - start_time
             total_done = 0
@@ -138,7 +138,7 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
                     rem = (elapsed / pct) - elapsed
                     eta_str = f"Restzeit: {format_time(rem)}"
                 else:
-                    rem = None  # Noch nicht gestartet / Berechnet noch
+                    rem = None
                     eta_str = "Berechne..."
                 
                 labels[name].value = f"{pct*100:.1f}% ({curr:,}/{max_value_per_agent:,}) | {eta_str}"
@@ -146,7 +146,6 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
                 if rem is not None:
                     active_agent_etas.append(rem)
             
-            # Gesamtbalken aktualisieren
             overall_bar.value = total_done
             o_pct = total_done / total_target
             
@@ -158,10 +157,8 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
                 
             overall_label.value = f"{o_pct*100:.1f}% ({total_done:,}/{total_target:,}) | {o_eta}"
             
-            # OPTIMIERUNG: Wartet maximal 1 Sekunde, bricht aber SOFORT ab, wenn alle fertig sind
             async_result.wait(timeout=1.0)
             
-        # 4. Finaler Clean-up der UI nach Beendigung
         for name in agent_names:
             bars[name].value = max_value_per_agent
             labels[name].value = f"100.0% ({max_value_per_agent:,}) | Fertig!"
