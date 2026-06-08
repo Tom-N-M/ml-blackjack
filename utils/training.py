@@ -1,14 +1,12 @@
 # utils/training.py
 import time
 from datetime import timedelta
-from pathlib import Path
 import gymnasium as gym
-import numpy as np
-from multiprocess import Pool, Manager
+from multiprocess.managers import SyncManager
+from multiprocess.pool import Pool
 import ipywidgets as widgets
 from IPython.display import display
-from env.blackjack_env import BlackjackEnv  
-from utils.env_utils import make_blackjack_env 
+from utils.env_utils import make_blackjack_env
 
 class ProgressWrapper(gym.Wrapper):
     def __init__(self, env, agent_name, progress_dict, start_episode):
@@ -37,6 +35,7 @@ def train_single_agent(
         checkpoint_interval,
         checkpoint_dir,
         run_id,
+        history_limit=None,
         progress_dict=None
     ):
     # Nutzen die zentrale Factory-Funktion
@@ -66,7 +65,8 @@ def train_single_agent(
         checkpoint_interval=checkpoint_interval,
         checkpoint_dir=checkpoint_dir,
         checkpoint_label=f"{run_id}_{name}_agent",
-        checkpoint_metadata={"agent_name": name, "agent_type": agent_type, "run_id": run_id, "seed": seed, "start_episode": start_episode, "target_episode": episodes_per_seed},
+        checkpoint_metadata={"agent_name": name, "agent_type": agent_type, "run_id": run_id, "seed": seed, "start_episode": start_episode, "target_episode": episodes_per_seed, "history_limit": history_limit},
+        history_limit=history_limit,
     )
     
     if progress_dict is not None: 
@@ -109,7 +109,7 @@ def run_parallel_with_dashboard(worker_func, base_tasks, agent_names, max_value_
         
     display(widgets.VBox(widget_rows))
     
-    with Manager() as manager, Pool() as pool:
+    with SyncManager() as manager, Pool() as pool:
         progress_dict = manager.dict()
         for name in agent_names:
             progress_dict[name] = 0
