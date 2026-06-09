@@ -1,0 +1,6 @@
+Welche Frage möchten Sie (Ihre Gruppe) beantworten?
+Welche Daten haben Sie ausgewählt?
+Welche Vorbereitungen haben Sie getroffen und warum?
+Welche Modelle/Parameter haben Sie gewählt und warum, wie haben Sie sie verglichen?
+Wie könnte man das gewählte Modell verbessern?
+Was könnten die nächsten Schritte im Projekt sein? Warum?
