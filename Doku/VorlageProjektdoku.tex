@@ -1,0 +1,388 @@
+\documentclass[12pt, ngerman, a4paper,toc=left, parskip=half, numbers=noenddot, headings=standardclasses, nonumberlist]{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{babel}
+%\usepackage{lmodern}
+\usepackage[top=2.5cm, right=2.5cm, bottom=2cm, left=2.5cm, footskip=0.5cm]{geometry}
+\usepackage{calc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage[official]{eurosym}
+\usepackage{lastpage}
+\usepackage{etoolbox}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{natbib}
+\bibliographystyle{agsm}
+\usepackage[hidelinks]{hyperref}
+\usepackage{dramatist}
+\usepackage{listings}
+
+\usepackage[table]{xcolor}
+\usepackage{multirow}
+\usepackage{array}
+
+\usepackage{adjustbox,lipsum}
+\usepackage{makecell}
+
+\lstset{ 
+    breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+    breaklines=true,                 % sets automatic line breaking
+    frame=single,                    % adds a frame around the code
+    keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+    numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+    numbersep=5pt,                   % how far the line-numbers are from the code
+    numberstyle=\color{gray},        % the style that is used for the line-numbers
+    rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+}
+
+\usepackage[acronym, toc]{glossaries}
+\makenoidxglossaries
+
+\newacronym{cicd}{CI/CD}{Continuous Integration/Continuous Deployment}
+\newacronym{http}{HTTP}{Hypertext Transfer Protocol}
+\newacronym{api}{API}{Application Programming Interface}
+\newacronym{crud}{CRUD}{Create, Read, Update, Delete}
+\newacronym{erd}{ERD}{Entity-Relation-Diagram}
+\newacronym{spa}{SPA}{Single-Page-Application}
+\newacronym{css}{CSS}{Cascading Style Sheets}
+\newacronym{tcp}{TCP}{Transmission Control Protocol}
+
+\newglossaryentry{gitlabrunner}{name={GitLab-Runner},description={Anwendung, die auf Aktionen eines Git Repositories reagiert und vorkonfigurierte Jobs ausführt}}
+\newglossaryentry{rest}{name={REST}, description = {Representational State Transfer, Ein Paradigma für die Architektur von \gls{crud} Webanwendungen }}
+% ------------- Abbildungen mit Tikz erstellen
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata,shapes,calc}
+
+
+% ------------- Zeilenabstand
+\usepackage{setspace}
+\spacing{1.5}
+
+% ------------- Kopfzeile
+\usepackage[automark]{scrlayer-scrpage}
+\pagestyle{scrheadings}
+\clearscrheadings
+\ihead{}
+%\ihead[\rightmark]{\pagemark}
+\chead{}
+%\chead{}{}
+%\ohead{\pagemark}
+%\ohead[\pagemark]{\rightmark}
+\ofoot{\pagemark}
+%\ofoot[\pagemark]{\rightmark}
+
+
+\renewcommand{\contentsname}{Inhaltsverzeichnis}
+\renewcommand{\listfigurename}{Abbildungsverzeichnis}
+\renewcommand{\listtablename}{Tabellenverzeichnis}
+
+%-------------- Ende allgemeine Angaben -----------------------------
+\begin{document}
+
+%-------------- Beginn Titelseite -----------------------------------
+\hypersetup{pageanchor=false}
+\thispagestyle{empty}
+
+\vspace{1cm}
+\begin{center}
+	\vspace{3cm}
+	{\large Abschlussprüfung Sommer 2024} \\
+	\vspace{2cm}
+	{\large Fachinformatiker Anwendungsentwicklung} \\
+	\vspace{3cm}
+	{\huge \textbf{Titel}}\\
+	\vspace{1.5cm}
+	{\large Dokumentation zur betrieblichen Projektarbeit}\\
+	\vspace{1.5pt}
+	{\large IHK Hamburg }
+\end{center}
+
+\vspace{1cm}
+\begin{flushleft}
+	Abgabe: \\
+	Hamburg, --.--.2024 
+	
+	\vspace{1cm}
+	
+	\textbf{Vorgelegt von:} \\
+	\begin{tabular}{l l}
+		Namen:       		& Nachname, Vorname \\
+		Ausbildungsbetrieb: & ABC AG			\\
+		Adresse:		    & Straße 12			\\
+							& 22303 Hamburg		\\
+	\end{tabular}
+\end{flushleft}
+%-------------- Ende Titelseite -------------------------------------
+
+%-------------- Inhaltsverzeichnis
+\newpage
+\hypersetup{pageanchor=true}
+\pagenumbering{arabic}
+\renewcommand{\thepage}{\Roman{page}}
+\tableofcontents{}
+
+%-------------- Abbildungsverzeichnis
+\newpage
+\cleardoublepage\phantomsection
+\addcontentsline{toc}{section}{Abbildungsverzeichnis}
+\listoffigures
+\renewcommand{\figurename}{Abb.}
+
+%-------------- Abkürzungsverzeichnis
+\newpage
+\cleardoublepage\phantomsection
+\printnoidxglossary[type=\acronymtype, title= Abkürzungsverzeichnis]
+
+%-------------- Glossar
+\newpage
+\cleardoublepage\phantomsection
+\printnoidxglossary[title= Glossar]
+
+%-------------- Tabellenverzeichnis
+\newpage
+\cleardoublepage\phantomsection
+\addcontentsline{toc}{section}{Tabellenverzeichnis}
+\listoftables
+
+\newpage
+\pagenumbering{arabic}
+\renewcommand{\thepage}{\arabic{page}}
+
+%-------------- Einleitung
+\section{Einleitung}
+
+\subsection{Projektbeschreibung}
+
+\subsection{Projektziel}
+
+\subsection{Projektbegründung}
+
+\subsection{Projektschnittstellen}
+
+\subsection{Projektabgrenzung}
+
+%------------- Projektplanung
+\newpage
+\section{Projektplanung}
+%------------- Projektplanung
+
+\subsection{Projektphasen}
+Ein interessantes Buch zu dem Thema ist \cite{IOR2021}
+
+\begin{table}[h]
+	\begin{center}
+		\rowcolors{2}{blue!80!green!50!yellow!10}{white}
+		\begin{tabular}{l r}
+			\rowcolor{blue!20}
+			Projektphase 				  & Geplante Zeit \\
+			\midrule
+			AnalysePhase 			      &  5 h          \\
+			Entwurfsphase   		      &  8 h          \\
+			Implementierungsphase         & 50 h          \\
+			Abnahme- und Deploymentsphase &  5 h		  \\
+			Dokumentationsphase			  & 12 h		  \\
+			\midrule
+			Gesamt						  & 80 h		  \\
+		\end{tabular}
+	\end{center}
+	\caption{Grobe Zeitplanung}
+	\label{table:1}
+\end{table}
+
+\subsection{Ressourcenplanung}
+%-------------- Analysephase
+\newpage
+\section{Analysephase}
+
+\subsection{Ist-Analyse}
+
+\subsection{Wirtschaftlichkeitsanalyse}
+
+\subsubsection{Projektkosten}
+
+\begin{table}[h]
+	\begin{center}
+		\rowcolors{1}{blue!80!green!50!yellow!10}{white}
+		\begin{tabular}{l r r}
+			Entwicklungszeit	&	   & 80 h   \\
+			Gruppenmitglieder	&  4   &        \\
+			Stundensatz      	& 15 € &        \\
+			Ressourcenpauschale &  5 € &		\\
+			Kosten Pro Stunde   &      & 65 €   \\
+			\midrule
+			\rowcolor{blue!20}
+			Gesamt       		&  	   & 2500 € \\
+		\end{tabular}
+	\end{center}
+	\caption{Projektkosten}
+	\label{table:2}
+\end{table}
+
+\subsubsection{Nutzwertanalyse}
+
+\begin{table}[h]
+	\begin{center}
+		\rowcolors{2}{blue!80!green!50!yellow!10}{white}
+		\begin{tabular}{ l c | r r | r r}
+											&				& \cellcolor{red!10!} Ist -	& \cellcolor{red!10!}	Zustand				& \cellcolor{green!10!} Projekt			& \cellcolor{green!10!}		\\
+			\rowcolor{blue!10}
+			Kriterien 						& \makecell{Gewicht\\in \%} & \makecell{Punkte\\(0-10)} & \makecell{Gewicht x\\Punkte} 	& \makecell{Punkte\\(0-10)} & \makecell{Gewicht x\\Punkte} \\
+			\toprule
+			Kosten       					& 20       		& 5   			& 100				& 3				&  60  \\
+			Nachhaltigkeit 					& 30       		& 3   			&  90				& 7				& 210  \\
+			Energieeffizienz 				& 40       		& 3   			& 120				& 7				& 280	\\
+			\makecell{Automatisierungs-\\möglichkeiten}   & 10      		& 1     		&  10				& 8 			&  80	\\
+			\hline
+			\rowcolor{blue!20}
+			Gesamt       					& 100      		& 12   			& 320				& 25 			& 630 	\\
+		\end{tabular}
+	\end{center}
+	
+	\caption{Nutzwertanalyse}
+	\label{table:3}
+\end{table}
+
+
+%-------------- Entwurfsphase
+\newpage
+\section{Entwurfsphase}
+%-------------- Entwurfsphase
+\subsection{Architekturdesign}
+
+\subsection{Entwurf der Benutzeroberfläche}\label{entwurfui}
+
+\subsection{Datenmodell}
+
+\subsection{Maßnahmen zur Qualitätssicherung}\label{quali}
+
+\subsection{Deployment}
+
+%-------------- Implementierungsphase
+\newpage
+\section{Implementierungsphase}
+%-------------- Implementierungsphase
+
+\subsection{Implementierung der Datenstrukturen}
+
+\subsection{Implementierung Benutzeröberfläche}
+
+\subsection{Implementierung der Middleware}
+%-------------- Abnahme und Deployment
+\newpage
+\section{Abnahme und Deploymentsphase}
+
+\subsection{Code-Review/ Team internes Review}
+
+\subsection{Deplyoment}
+
+%-------------- Fazit
+\newpage
+\section{Fazit}
+%-------------- Fazit
+
+\subsection{Soll-/Ist-Vergleich}
+
+\begin{table}[h]
+	\begin{center}
+		\rowcolors{2}{blue!80!green!50!yellow!10}{white}
+		\begin{tabular}{l r r r}	
+			\rowcolor{blue!20}
+			Projektphase 				 &Geplant& Tatsächlich & Differenz\\
+			\midrule
+			AnalysePhase 			      &  5 h &  7 h & + 2 h   \\
+			Entwurfsphase   		      &  8 h &  6 h & - 2 h   \\
+			Implementierungsphase         & 50 h & 52 h & + 2 h   \\
+			Abnahme- und Deploymentsphase &  5 h &  5 h & - 1 h	  \\
+			Dokumentationsphase			  & 12 h & 12 h & 	0 h   \\
+			\midrule
+			Gesamt						  & 80 h & 80 h &   0 h   \\
+		\end{tabular}
+	\end{center}
+	\caption{Soll-/Ist-Vergleich}
+	\label{table:4}
+\end{table}
+
+\subsection{Lessons Learned}
+
+\subsection{Ausblick}
+
+%-------------- Literaturverzeichnis
+\newpage
+\addcontentsline{toc}{section}{Literatur}
+\bibliography{Quellen}
+
+%-------------- Anhang
+\newpage
+\appendix
+\section{Anhang}
+\subsection{Detaillierte Zeitplanung}\label{A1}
+\begin{table}[h]
+	\begin{center}
+		\rowcolors{2}{blue!80!green!50!yellow!10}{white}
+		\begin{tabular}{l r r}	
+			\rowcolor{blue!20}
+			AnalysePhase 			       					&  		&  8 h  \\
+			1. Durchführung einer detaillierten Ist-Analyse &  3 h 	&       \\
+			2. Erstellung einer Wirtschaftlichkeitsanalyse 	&  2 h 	& 		\\
+			3. Grundaufbau strukturieren 					&  3 h	& 		\\
+			\rowcolor{blue!20}
+			Entwurfsphase   		    					&  		&  4 h  \\
+			1. Planung der Softwarearchitektur  			&  3 h  &	 	\\ 
+			1. Planung der Bernutzeroberfläche  			&  1 h  &	 	\\ 
+			\rowcolor{blue!20}
+			Implementierungsphase    						&       & 50 h  \\	
+			1. Frontend development 						& 15 h	& 		\\
+			2. Backend development  						& 20 h  & 		\\
+			3. Implementierung der Containerization  		& 15 h 	& 		\\
+			\rowcolor{blue!20}
+			Abnahme- und Deploymentsphase  					&      	&  6 h	\\
+			1. Qualitätssicherung 							&  2 h 	& 		\\
+			2. Interne Abnahme im Team  					&  2 h 	& 		\\
+			3. Live-Stellung  								&  2 h 	& 		\\ 
+			\rowcolor{blue!20}
+			Dokumentationsphase			  					&     	& 12 h	\\
+			1. Erstellung der Projektdokumentation  		& 12 h 	& 		\\
+			\midrule
+			\rowcolor{blue!20}
+			Gesamt						   					&     	& 80 h	\\
+		\end{tabular}
+	\end{center}
+\end{table}
+
+\subsection{Ressourcen}\label{A2}
+Hardware
+\begin{itemize}
+  \item Arbeitsplatz mit Laptop und externem Bildschirm für jeden Auszubildenden
+  \item Debian 12 Linux Server
+\end{itemize}
+
+Software
+\begin{itemize}
+  \item Visual Studio Code - Entwicklungsumgebung
+  \item XAMPP - Lokale MySQL Datenbank
+  \item HeidiSQL - Grafischer SQL-Client
+  \item Git - Verteilte Versionsverwaltung
+  \item GitLab - Server für Git
+  \item Vite - Buildtool
+  \item Node.js - JavaScript Laufzeitumgebung
+  \item MySQL - Datenbankmanagementsystem
+  \item Vue.js - JavaScript Frontend Framework
+  \item Docker - Software zur Containerization
+  \item GitLab Runner - Pipeline
+  \item Notion - Projektmanagement
+  \item Discord - Kommunikationsplattform
+  \item Google Docs - Kollaborative Notizplattform
+\end{itemize}
+
+Personal
+\begin{itemize}
+  \item Auszubildende - Umsetzung des Projektes
+  \item Auszubildende - Review des Codes
+  \item Mitarbeiter von Pemamek - Festlegung der Anforderungen, Abstimmung der Oberfläche und Abnahme des Projektes
+\end{itemize}
+
+
+\end{document}
