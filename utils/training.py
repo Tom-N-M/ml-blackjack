@@ -55,7 +55,7 @@ def train_single_agent(
     if episodes_to_train == 0:
         if progress_dict is not None: 
             progress_dict[name] = episodes_per_seed
-        agent.env = None # BUGFIX: Verhindert Deadlock, falls nichts zu trainieren ist
+        agent.env = None
         return name, agent
 
     agent.train(
@@ -72,13 +72,7 @@ def train_single_agent(
     if progress_dict is not None: 
         progress_dict[name] = episodes_per_seed
     
-    # =========================================================================
-    # CRITICAL BUGFIX: PIPELINE-DEADLOCK VERHINDERN
-    # =========================================================================
-    # Wir müssen das env-Objekt (und damit den verknüpften Manager-Proxy) löschen,
-    # da komplexe interprozessuale Objekte beim Rücktransport über die Pipe 
-    # die Serialisierung blockieren.
-    agent.env = None 
+    agent.env = None
     
     return name, agent
 
