@@ -1,11 +1,12 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timezone
+from typing import cast
 from tqdm import tqdm
 import gymnasium as gym
+from gymnasium.spaces import Discrete
 import numpy as np
 import pickle
 
-import sys
 from pathlib import Path
 
 class QValueFactory:
@@ -37,9 +38,10 @@ class QLearningBlackjackAgent:
         self.env = env
         self.state_encoder = state_encoder
 
-        self.action_shape = env.action_space.n
+        action_space = cast(Discrete, env.action_space)
+        self.action_shape = int(action_space.n)
 
-        self.q_values = defaultdict(QValueFactory(self.action_shape))
+        self.q_values: defaultdict[object, np.ndarray] = defaultdict(QValueFactory(self.action_shape))
 
         self.lr = learning_rate
         self.discount_factor = discount_factor
@@ -49,8 +51,8 @@ class QLearningBlackjackAgent:
         self.epsilon_decay = epsilon_decay
         self.final_epsilon = final_epsilon
 
-        self.training_error: list[float] = []
-        self.episode_rewards: list[float] = []
+        self.training_error: list[float] | deque[float] = []
+        self.episode_rewards: list[float] | deque[float] = []
         self.checkpoint_paths: list[Path] = []
 
     # ---------------------------------------------------------
@@ -109,14 +111,18 @@ class QLearningBlackjackAgent:
         checkpoint_label: str | None = None,
         checkpoint_metadata: dict | None = None,
         checkpoint_include_history: bool = False,
+        history_limit: int | None = None,
     ) -> list[float]:
         """
         Train agent and return episode rewards.
         """
 
-        self.episode_rewards.clear()
-        self.training_error = []
-        self.checkpoint_paths: list[Path] = []
+        if history_limit is not None and history_limit <= 0:
+            raise ValueError("history_limit must be positive.")
+
+        self.episode_rewards = deque[float](maxlen=history_limit) if history_limit is not None else list[float]()
+        self.training_error = deque[float](maxlen=history_limit) if history_limit is not None else list[float]()
+        self.checkpoint_paths.clear()
 
         if start_episode < 0:
             raise ValueError("start_episode must not be negative.")
@@ -130,8 +136,10 @@ class QLearningBlackjackAgent:
                 raise ValueError("checkpoint_interval must be positive.")
             if checkpoint_dir is None:
                 raise ValueError("checkpoint_dir is required when checkpoint_interval is set.")
-            checkpoint_dir = Path(checkpoint_dir)
-            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            resolved_checkpoint_dir = Path(checkpoint_dir)
+            resolved_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            resolved_checkpoint_dir = None
 
         label = checkpoint_label or self.__class__.__name__
         episodes = range(start_episode, end_episode)
@@ -154,6 +162,7 @@ class QLearningBlackjackAgent:
             while not (terminated or truncated):
                 action = self.get_action(obs)
                 next_obs, reward, terminated, truncated, _ = self.env.step(action)
+                reward = float(reward)
 
                 td_error = self.update(
                     obs,
@@ -173,7 +182,8 @@ class QLearningBlackjackAgent:
 
             episode_number = episode + 1
             if checkpoint_interval is not None and episode_number % checkpoint_interval == 0:
-                checkpoint_path = checkpoint_dir / f"{label}_episode_{episode_number}.pkl"
+                assert resolved_checkpoint_dir is not None
+                checkpoint_path = resolved_checkpoint_dir / f"{label}_episode_{episode_number}.pkl"
                 self.save(
                     checkpoint_path,
                     label=label,
@@ -186,7 +196,7 @@ class QLearningBlackjackAgent:
                 )
                 self.checkpoint_paths.append(checkpoint_path)
 
-        return self.episode_rewards
+        return list(self.episode_rewards)
 
     # ---------------------------------------------------------
     # Save / Load
@@ -227,8 +237,8 @@ class QLearningBlackjackAgent:
             "q_states": len(clean_q_values),
             "training_error": list(self.training_error) if include_history else [],
             "episode_rewards": list(self.episode_rewards) if include_history else [],
-            "training_error_tail": list(self.training_error[-1000:]),
-            "episode_rewards_tail": list(self.episode_rewards[-1000:]),
+            "training_error_tail": list(self.training_error)[-1000:],
+            "episode_rewards_tail": list(self.episode_rewards)[-1000:],
             "learning_rate": self.lr,
             "discount_factor": self.discount_factor,
             "epsilon": self.epsilon,
@@ -276,7 +286,7 @@ class QLearningBlackjackAgent:
         self.episode_rewards = artifact.get("episode_rewards") or artifact.get("episode_rewards_tail", [])
 
         self.q_values = defaultdict(
-            lambda: np.zeros(self.env.action_space.n, dtype=np.float32)
+            lambda: np.zeros(self.action_shape, dtype=np.float32)
         )
         
         for k, v in artifact["q_values"].items():
