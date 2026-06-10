@@ -1,3 +1,41 @@
-\section{Training \& Experimentelles Setup}
+\section{Training und experimentelles Setup}
 \label{sec:setup}
-Dokumentation eurer Trainingsmethode. Zur Sicherung der statistischen Robustheit wurden für beide Agenten-Typen drei orthogonale Trainings-Seeds verwendet: $\text{SEEDS} = \{1, 42, 123\}$. Die Gesamtzahl der Trainingsepisoden betrug pro Seed $100.000.000$.
+
+\subsection{Trainingsprozess}
+
+Für beide Agententypen wurden drei getrennte Trainingsläufe mit den Seeds $\{1,42,123\}$ durchgeführt. Jede der sechs Agentinstanzen absolvierte 100 Millionen Episoden; insgesamt wurden somit 600 Millionen Trainingsrunden simuliert. Innerhalb einer Episode läuft der Prozess wie folgt ab:
+
+\begin{enumerate}
+    \item Umgebung zurücksetzen und aktuelle Beobachtung kodieren,
+    \item Aktion mit der $\epsilon$-greedy Policy auswählen,
+    \item Aktion ausführen und Reward sowie Folgezustand beobachten,
+    \item Q-Wert aktualisieren und bei Episodenende $\epsilon$ reduzieren.
+\end{enumerate}
+
+Die sechs Trainingsläufe wurden mit mehreren Prozessen parallel ausgeführt. Alle 10 Millionen Episoden wurde eine Checkpoint-Datei mit Q-Tabelle, Hyperparametern und Metadaten gespeichert. Insgesamt entstanden 60 Checkpoints und sechs finale Modelle. Um den Speicherbedarf zu begrenzen, hielt der Trainingsprozess nur die letzten 100.000 Rewards und TD-Fehler im Arbeitsspeicher; die finalen Pickles speichern davon lediglich einen Tail von 1.000 Einträgen. Für eine belastbare Lernkurve über den gesamten Lauf wurden deshalb im Rahmen dieser Dokumentation alle Checkpoints erneut unter identischen Bedingungen evaluiert.
+
+\subsection{Software, Hardware und Laufzeit}
+
+Die Umgebung und Agenten sind in Python implementiert. Zentrale Bibliotheken sind NumPy, pandas, Matplotlib und Gymnasium. Die reproduzierbare Paketkonfiguration liegt in \texttt{environment.yml}; dort ist Python 3.11 spezifiziert. Training und Evaluation verwenden CPU-Parallelisierung. Der Q-Learning-Code enthält keine Tensoroperationen auf einer GPU, weshalb installierte CUDA-Pakete keinen Einfluss auf den finalen Lauf hatten.
+
+Auf dem dokumentierten Entwicklungsrechner steht ein AMD Ryzen 5 5625U mit sechs Kernen und zwölf logischen Prozessoren zur Verfügung. Der parallele finale Trainingslauf benötigte 13 Stunden, 1 Minute und 47 Sekunden. Eine erste In-Memory-Evaluation dauerte jeweils ungefähr zwölf Minuten. Nach der Notebook-Überarbeitung wurden die gespeicherten finalen Modelle explizit neu geladen und erneut ausgewertet; auf dem dabei verwendeten Rechner dauerten die greedy Evaluation 5 Minuten und 41 Sekunden und die True-Count-Bucket-Evaluation 5 Minuten und 50 Sekunden.
+
+\subsection{Evaluationsdesign}
+
+Während der Evaluation wird $\epsilon=0$ gesetzt und somit stets die greedy Aktion gewählt. Für jede der sechs trainierten Agentinstanzen wurden die Evaluationsseeds $\{1234,4321,9876\}$ mit jeweils einer Million Episoden verwendet. Dies ergibt drei Millionen Testepisoden je trainierter Instanz, neun Millionen je Agententyp und 18 Millionen insgesamt. Dieselben Evaluationsseeds stellen für alle Modelle vergleichbare Zufallsinitialisierungen her. Da unterschiedliche Policies jedoch unterschiedlich viele Karten ziehen und dadurch spätere Kartenfolgen sowie Reshuffle-Zeitpunkte verändern, sind die resultierenden Episoden nicht vollständig gepaart.
+
+Zusätzlich wurde eine separate Bucket-Evaluation mit demselben Umfang und denselben Evaluationsseeds durchgeführt. Sie unterscheidet vier Bereiche: $\leq -3$, $-2$ bis $0$, $1$ bis $2$ und $\geq 3$. Das Bucket einer Episode wird anhand des wie im State Encoder gegen null gekürzten True Counts zu Episodenbeginn bestimmt; Aktionsraten werden anhand des jeweils aktuellen gekürzten True Counts gezählt.
+
+Für die Verlaufsgrafik wurden alle 60 Checkpoints mit einer gemeinsamen greedy Testsequenz aus jeweils 100.000 Episoden bewertet. Diese zusätzliche Evaluation ist wegen der kleineren Stichprobe noisiger als die finale Evaluation, erlaubt aber einen konsistenten Vergleich der Zwischenstände.
+
+\subsection{Metriken und statistische Auswertung}
+
+Berichtet werden durchschnittlicher Reward, Win-, Loss- und Push-Rate sowie die Zahl beobachteter Q-States. Für einzelne große Evaluationsläufe lassen sich enge 95\,\%-Konfidenzintervalle auf Episodenebene berechnen. Episoden innerhalb eines endlichen Schlittens sind jedoch nicht vollständig unabhängig, und vor allem bilden solche Intervalle die Unsicherheit durch unterschiedliche Trainingsläufe nicht ab.
+
+Aus diesem Grund werden die drei Trainingsseeds separat dargestellt. Bei Aussagen über den Modellvergleich ist ihre Streuung wichtiger als die reine Zahl simulierter Testepisoden. Diese Unterscheidung entspricht Empfehlungen, RL-Ergebnisse mit mehreren Seeds und transparenter Unsicherheitsdarstellung zu bewerten~\cite{henderson2018matters}.
+
+\subsection{Projektorganisation und Reproduzierbarkeit}
+
+Die Projektarbeit wurde gleichmäßig auf Linus Paliga, Tom Niklas Markmann und Arvid Freese verteilt. Die Zusammenarbeit folgte einem iterativen, issue-basierten Arbeitsprozess auf GitHub. Anforderungen, Fehler und geplante Experimente wurden zunächst als Issues mit einem klaren Ziel festgehalten. Beispiele sind die Hyperparametersuche (\#9), die Visualisierung der Q-Tabellen (\#11), die Behebung eines Fehlers bei der Parallelisierung (\#13) und die Überarbeitung der Visualisierungen sowie der finalen Evaluation (\#8). Die zugehörigen Änderungen wurden in kleinen Arbeitsschritten umgesetzt, getestet und anschließend in den gemeinsamen Main-Branch integriert. Ergebnisse aus Training und Evaluation flossen wiederum in Folgeaufgaben und weitere Iterationen ein.
+
+Das Repository enthält die Umgebung, Agentenlogik, Trainings- und Evaluationshilfen, das ausgeführte finale Notebook, Ergebnis-CSV-Dateien, finale Modelle und Checkpoints. Der finale Trainingslauf ist durch die Run-ID \texttt{20260608\_170145} gekennzeichnet. Die nach der Notebook-Überarbeitung explizit aus diesen Pickles erzeugte Evaluation liegt unter \texttt{20260610\_164317}. Dadurch konnten Zwischenstände nachvollzogen, Ergebnisse gemeinsam geprüft und zentrale Resultate unabhängig vom Notebook-Speicherzustand reproduziert werden.

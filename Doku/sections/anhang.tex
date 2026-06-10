@@ -1,3 +1,47 @@
 \appendix
 \section{Anhang}
 \label{sec:anhang}
+
+\subsection{Zentrale Artefakte}
+
+\begin{table}[H]
+\centering
+\caption{Relevante Projektartefakte für die Reproduktion}
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Artefakt} & \textbf{Pfad im Repository}\\
+\midrule
+Experiment-Notebook & \texttt{notebooks/01\_experiment.ipynb}\\
+Ausgeführter finaler Lauf & \texttt{models/runs/big\_run\_launcher\_20260608\_170138/}\\
+Finale Modelle & \texttt{models/20260608\_170145\_*\_agent.pkl}\\
+Checkpoints & \texttt{models/checkpoints/<agent-seed>/}\\
+Finale Metriken & \texttt{models/evaluations/20260610\_164317/}\\
+Projektgrafiken & \texttt{images/}\\
+Zusätzliche Berichtsauswertung & \texttt{Doku/figures/}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Ausgewählte Ergebnisse der Hyperparametersuche}
+
+\begin{table}[H]
+\centering
+\caption{Stufe C der Hyperparametersuche bei 20 Millionen Episoden}
+\small
+\begin{tabular}{llrrr}
+\toprule
+\textbf{Agent} & \textbf{Konfiguration} & \textbf{Avg. Reward} & \textbf{Seed-Std.} & \textbf{Q-States}\\
+\midrule
+Baseline & \texttt{c00\_default} & $-0{,}04906$ & $0{,}00138$ & 280\\
+Counting & \texttt{c05\_long\_default} & $-0{,}05259$ & $0{,}00052$ & 108.681\\
+Counting & \texttt{c09\_lr01\_gamma098} & $-0{,}05353$ & $0{,}00101$ & 108.597\\
+Counting & \texttt{c00\_default} & $-0{,}05442$ & $0{,}00138$ & 108.590\\
+Counting & \texttt{c15\_long\_high\_lr} & $-0{,}05528$ & $0{,}00106$ & 108.479\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Reproduktionshinweise}
+
+Das Experiment-Notebook erzeugt die finalen Evaluations-, True-Count- und Policy-Grafiken unter \texttt{images/} aus den gespeicherten Modellen und Evaluationsdaten. Für kompakte Berichtsdarstellungen wurden die finalen Metriken und True-Count-Ergebnisse aus den gespeicherten CSV-Dateien zusammengefasst. Zusätzlich wurden die 60 Checkpoints mit jeweils 100.000 Episoden ausgewertet. Die resultierenden Zusammenfassungen liegen unter \texttt{Doku/figures/}. Der LaTeX-Bericht wird unter Windows mit \texttt{build-latex.ps1} kompiliert.

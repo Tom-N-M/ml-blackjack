@@ -1,0 +1,324 @@
+from __future__ import annotations
+
+import pickle
+import re
+import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DOKU_ROOT = Path(__file__).resolve().parents[1]
+FIGURE_DIR = DOKU_ROOT / "figures"
+CHECKPOINT_DIR = PROJECT_ROOT / "models" / "checkpoints"
+EVALUATION_DIR = PROJECT_ROOT / "models" / "evaluations" / "20260610_164317"
+CHECKPOINT_METRICS_PATH = FIGURE_DIR / "checkpoint_metrics.csv"
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from env.blackjack_env import BlackjackEnv
+
+
+AGENT_COLORS = {"baseline": "#6b7c93", "counting": "#2a9d8f"}
+AGENT_LABELS = {"baseline": "Baseline", "counting": "Counting"}
+CHECKPOINT_PATTERN = re.compile(
+    r".*_(?P<agent_type>baseline|counting)-(?P<seed>\d+)_agent_episode_(?P<episode>\d+)\.pkl"
+)
+
+
+def baseline_state_key(obs: np.ndarray) -> tuple[int, int, int]:
+    return int(obs[0]), int(obs[1]), int(obs[2])
+
+
+def counting_state_key(obs: np.ndarray) -> tuple[int, int, int, int, int, int]:
+    return (
+        int(obs[0]),
+        int(obs[1]),
+        int(obs[2]),
+        int(np.clip(obs[3], -20, 20)),
+        int(np.clip(obs[4], -10, 10)),
+        int(np.clip(obs[5] // 52, 0, 6)),
+    )
+
+
+def evaluate_checkpoint(task: tuple[str, int, int]) -> dict[str, float | int | str]:
+    checkpoint_path_raw, eval_episodes, eval_seed = task
+    checkpoint_path = Path(checkpoint_path_raw)
+    match = CHECKPOINT_PATTERN.fullmatch(checkpoint_path.name)
+    if match is None:
+        raise ValueError(f"Unexpected checkpoint name: {checkpoint_path.name}")
+
+    agent_type = match.group("agent_type")
+    train_seed = int(match.group("seed"))
+    episode = int(match.group("episode"))
+    state_key = baseline_state_key if agent_type == "baseline" else counting_state_key
+
+    with checkpoint_path.open("rb") as checkpoint_file:
+        artifact = pickle.load(checkpoint_file)
+    q_values = artifact["q_values"]
+
+    env = BlackjackEnv(num_decks=6, penetration=0.75, stand_on_soft_17=True)
+    env.action_space.seed(eval_seed)
+    wins = losses = pushes = 0
+
+    for eval_episode in range(eval_episodes):
+        obs, _ = env.reset(seed=eval_seed + eval_episode)
+        terminated = truncated = False
+        episode_reward = 0.0
+
+        while not (terminated or truncated):
+            values = q_values.get(state_key(obs))
+            action = int(np.argmax(values)) if values is not None else 0
+            obs, reward, terminated, truncated, _ = env.step(action)
+            episode_reward += float(reward)
+
+        if episode_reward > 0:
+            wins += 1
+        elif episode_reward < 0:
+            losses += 1
+        else:
+            pushes += 1
+
+    return {
+        "agent_type": agent_type,
+        "train_seed": train_seed,
+        "training_episodes": episode,
+        "eval_episodes": eval_episodes,
+        "eval_seed": eval_seed,
+        "q_states": int(artifact.get("q_state_count", len(q_values))),
+        "win_rate": wins / eval_episodes,
+        "loss_rate": losses / eval_episodes,
+        "push_rate": pushes / eval_episodes,
+        "average_reward": (wins - losses) / eval_episodes,
+    }
+
+
+def build_checkpoint_metrics(eval_episodes: int = 100_000, eval_seed: int = 24_680) -> pd.DataFrame:
+    checkpoint_paths = sorted(CHECKPOINT_DIR.glob("*/*.pkl"))
+    tasks = [(str(path), eval_episodes, eval_seed) for path in checkpoint_paths]
+    rows = []
+
+    with ProcessPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(evaluate_checkpoint, task): task[0] for task in tasks}
+        for completed, future in enumerate(as_completed(futures), start=1):
+            rows.append(future.result())
+            print(f"Evaluated checkpoint {completed}/{len(futures)}")
+
+    checkpoint_df = pd.DataFrame(rows).sort_values(
+        ["agent_type", "train_seed", "training_episodes"]
+    )
+    checkpoint_df.to_csv(CHECKPOINT_METRICS_PATH, index=False)
+    return checkpoint_df
+
+
+def plot_checkpoint_progress(checkpoint_df: pd.DataFrame) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(13.5, 5.2))
+
+    for agent_type in ["baseline", "counting"]:
+        subset = checkpoint_df[checkpoint_df["agent_type"].eq(agent_type)]
+        pivot_reward = subset.pivot(
+            index="training_episodes", columns="train_seed", values="average_reward"
+        ).sort_index()
+        x_million = pivot_reward.index.to_numpy() / 1_000_000
+        mean_reward = pivot_reward.mean(axis=1).to_numpy()
+        std_reward = pivot_reward.std(axis=1).to_numpy()
+
+        for seed in pivot_reward.columns:
+            axes[0].plot(
+                x_million,
+                pivot_reward[seed],
+                color=AGENT_COLORS[agent_type],
+                alpha=0.24,
+                linewidth=1.1,
+            )
+        axes[0].plot(
+            x_million,
+            mean_reward,
+            color=AGENT_COLORS[agent_type],
+            linewidth=2.5,
+            marker="o",
+            label=AGENT_LABELS[agent_type],
+        )
+        axes[0].fill_between(
+            x_million,
+            mean_reward - std_reward,
+            mean_reward + std_reward,
+            color=AGENT_COLORS[agent_type],
+            alpha=0.14,
+            )
+
+        pivot_states = subset.pivot(
+            index="training_episodes", columns="train_seed", values="q_states"
+        ).sort_index()
+        state_mean = pivot_states.mean(axis=1).to_numpy()
+        state_min = pivot_states.min(axis=1).to_numpy()
+        state_max = pivot_states.max(axis=1).to_numpy()
+        axes[1].plot(
+            x_million,
+            state_mean,
+            color=AGENT_COLORS[agent_type],
+            linewidth=2.5,
+            marker="o",
+            label=AGENT_LABELS[agent_type],
+        )
+        axes[1].fill_between(
+            x_million,
+            state_min,
+            state_max,
+            color=AGENT_COLORS[agent_type],
+            alpha=0.14,
+        )
+
+    axes[0].set_title("Greedy-Evaluation der Checkpoints")
+    axes[0].set_xlabel("Trainingsepisoden (Mio.)")
+    axes[0].set_ylabel("Durchschnittlicher Reward")
+    axes[0].axhline(0, color="black", linewidth=0.8)
+    axes[0].legend()
+
+    axes[1].set_title("Wachstum der Q-Tabelle")
+    axes[1].set_xlabel("Trainingsepisoden (Mio.)")
+    axes[1].set_ylabel("Beobachtete Q-States")
+    axes[1].set_yscale("log")
+    axes[1].legend()
+
+    for ax in axes:
+        ax.grid(alpha=0.25)
+
+    fig.tight_layout()
+    fig.savefig(FIGURE_DIR / "checkpoint_progress.png", dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_final_metrics() -> None:
+    metrics = pd.read_csv(EVALUATION_DIR / "greedy_metrics.csv")
+    per_train_seed = (
+        metrics.groupby(["agent_type", "train_seed"], as_index=False)[
+            ["average_reward", "win_rate", "loss_rate", "push_rate"]
+        ]
+        .mean()
+        .sort_values(["agent_type", "train_seed"])
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8))
+    configurations = [
+        ("average_reward", "Durchschnittlicher Reward"),
+        ("win_rate", "Win Rate"),
+    ]
+
+    for ax, (metric, title) in zip(axes, configurations):
+        positions = np.arange(2)
+        means = []
+        for index, agent_type in enumerate(["baseline", "counting"]):
+            values = per_train_seed.loc[
+                per_train_seed["agent_type"].eq(agent_type), metric
+            ].to_numpy()
+            means.append(values.mean())
+            jitter = np.linspace(-0.07, 0.07, len(values))
+            ax.scatter(
+                np.full(len(values), index) + jitter,
+                values,
+                color="black",
+                edgecolor="white",
+                linewidth=0.7,
+                s=55,
+                zorder=3,
+                label="Trainingsseed" if index == 0 else None,
+                )
+        ax.bar(
+            positions,
+            means,
+            color=[AGENT_COLORS["baseline"], AGENT_COLORS["counting"]],
+            alpha=0.82,
+            width=0.55,
+        )
+        ax.set_xticks(positions, [AGENT_LABELS["baseline"], AGENT_LABELS["counting"]])
+        ax.set_title(title)
+        ax.grid(axis="y", alpha=0.25)
+        for index, value in enumerate(means):
+            ax.annotate(
+                f"{value:.6f}" if metric == "average_reward" else f"{value:.3%}",
+                (index, value),
+                xytext=(0, 6),
+                textcoords="offset points",
+                ha="center",
+                fontsize=9,
+                fontweight="bold",
+            )
+
+    axes[0].set_ylabel("Reward")
+    axes[1].set_ylabel("Anteil")
+    fig.suptitle("Finale greedy Evaluation: Mittelwerte und Trainingsseeds")
+    fig.tight_layout()
+    fig.savefig(FIGURE_DIR / "final_metrics_by_seed.png", dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_true_count_effects() -> None:
+    bucket_df = pd.read_csv(EVALUATION_DIR / "true_count_bucket_metrics.csv")
+    weighted = bucket_df[bucket_df["aggregation"].eq("weighted")].copy()
+    bucket_order = ["<= -3", "-2 to 0", "1 to 2", ">= 3"]
+    weighted["bucket"] = pd.Categorical(
+        weighted["bucket"], categories=bucket_order, ordered=True
+    )
+    weighted = weighted.sort_values(["bucket", "agent_type"])
+
+    reward_pivot = weighted.pivot(
+        index="bucket", columns="agent_type", values="average_reward"
+    ).reindex(bucket_order)
+    hit_pivot = weighted.pivot(
+        index="bucket", columns="agent_type", values="hit_rate"
+    ).reindex(bucket_order)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.9))
+    for agent_type in ["baseline", "counting"]:
+        axes[0].plot(
+            bucket_order,
+            reward_pivot[agent_type],
+            marker="o",
+            linewidth=2.3,
+            color=AGENT_COLORS[agent_type],
+            label=AGENT_LABELS[agent_type],
+        )
+        axes[1].plot(
+            bucket_order,
+            hit_pivot[agent_type],
+            marker="o",
+            linewidth=2.3,
+            color=AGENT_COLORS[agent_type],
+            label=AGENT_LABELS[agent_type],
+        )
+
+    axes[0].set_title("Reward nach True-Count-Bucket")
+    axes[0].set_ylabel("Durchschnittlicher Reward")
+    axes[1].set_title("Aktionsanpassung nach True-Count-Bucket")
+    axes[1].set_ylabel("Anteil Hit-Aktionen")
+    for ax in axes:
+        ax.set_xlabel("True Count zu Episodenbeginn")
+        ax.grid(alpha=0.25)
+        ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(FIGURE_DIR / "true_count_effects.png", dpi=240, bbox_inches="tight")
+    plt.close(fig)
+
+
+def main() -> None:
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+    if CHECKPOINT_METRICS_PATH.exists():
+        checkpoint_df = pd.read_csv(CHECKPOINT_METRICS_PATH)
+    else:
+        checkpoint_df = build_checkpoint_metrics()
+
+    plot_checkpoint_progress(checkpoint_df)
+    plot_final_metrics()
+    plot_true_count_effects()
+    print(f"Report figures written to {FIGURE_DIR}")
+
+
+if __name__ == "__main__":
+    main()

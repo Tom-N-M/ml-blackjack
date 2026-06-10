@@ -1,16 +1,130 @@
-\section{Evaluation \& Modellvergleich}
+\section{Ergebnisse und Evaluation}
 \label{sec:evaluation}
-Die Evaluation erfolgte ohne Exploration ($\epsilon = 0$) über $1.000.000$ Testepisoden pro Seed.
 
-\subsection{Metriken im Vergleich}
-Hier fügt ihr die Werte aus eurem finalen DataFrame (\texttt{per\_seed\_metrics\_df}) ein.
+\subsection{Trainingsverlauf und Zustandswachstum}
 
-\subsection{Visualisierung der Lernkurve}
-% Beispielhafte Einbindung eures Plots aus dem Notebook (Ordner 'images' muss existieren)
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.85\textwidth]{images/learning_curve.png}
-%     \caption{Verlauf des mittleren Rewards und des TD-Errors über die Episoden}
-%     \label{fig:lernkurve}
-% \end{figure}
+Abbildung~\ref{fig:checkpoint_progress} zeigt die zusätzliche greedy Evaluation aller Checkpoints. Dünne Linien repräsentieren einzelne Trainingsseeds, die kräftige Linie den jeweiligen Mittelwert; die Schattierung zeigt eine Standardabweichung über die drei Seeds. Da jeder Checkpoint nur mit 100.000 Episoden getestet wurde, ist ein Teil der Schwankung Evaluationsrauschen.
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{checkpoint_progress}
+    \caption{Checkpoint-Verlauf des durchschnittlichen Rewards und Wachstum der Q-Tabellen.}
+    \label{fig:checkpoint_progress}
+\end{figure}
+
+Die Baseline erreicht bereits nach 10 bis 20 Millionen Episoden ein Niveau um $-0{,}05$ und schwankt danach ohne eindeutigen Trend. Der Counting-Agent startet bei 10 Millionen Episoden mit durchschnittlich $-0{,}0561$ deutlich schlechter, verbessert sich aber bis zum Ende auf ein ähnliches Niveau. Bei 90 Millionen Episoden erreicht er in dieser kleineren Checkpoint-Evaluation den besten Mittelwert von $-0{,}0476$; bei 100 Millionen liegt er bei $-0{,}0492$. Die nicht monotone Entwicklung zeigt, dass der letzte Checkpoint nicht zwangsläufig der beste Zwischenstand ist.
+
+Parallel wächst die Counting-Q-Tabelle von durchschnittlich 104.104 Zuständen nach 10 Millionen Episoden auf 113.760 Zustände nach 100 Millionen. Selbst am Ende kommen neue Zustände hinzu. Die Baseline-Tabelle hat dagegen bereits beim ersten Checkpoint ihre endgültige beobachtete Größe von 280 Zuständen erreicht. Zusammen mit den Reward-Schwankungen spricht dies gegen die starke Aussage, der Counting-Agent sei nach 100 Millionen Episoden vollständig konvergiert.
+
+\subsection{Finale Leistung der Agenten}
+
+Die finale greedy Evaluation nutzt pro Agentinstanz drei Evaluationsseeds mit jeweils einer Million Episoden. Tabelle~\ref{tab:final_metrics} aggregiert neun Millionen Episoden je Agententyp.
+
+\begin{table}[H]
+\centering
+\caption{Finale greedy Evaluation, aggregiert über Trainings- und Evaluationsseeds}
+\label{tab:final_metrics}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Agent} & \textbf{Episoden} & \textbf{Win Rate} & \textbf{Loss Rate} & \textbf{Push Rate} & \textbf{Avg. Reward}\\
+\midrule
+Baseline & 9.000.000 & 42,746\,\% & 47,902\,\% & 9,351\,\% & $-0{,}051562$\\
+Counting & 9.000.000 & 42,833\,\% & 47,810\,\% & 9,357\,\% & $-0{,}049767$\\
+\midrule
+Differenz & -- & +0,087 Pp. & $-0{,}093$ Pp. & +0,006 Pp. & $+0{,}001794$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Der Counting-Agent verbessert den durchschnittlichen Reward um $0{,}001794$. Bezogen auf den Betrag des Baseline-Verlusts entspricht dies einer Reduktion von etwa 3,5\,\%. Die Win Rate steigt lediglich um 0,087 Prozentpunkte. Beide Agenten bleiben im Mittel im negativen Reward-Bereich; der Counting-Agent erreicht den heuristischen Zielwert $-0{,}05$ knapp, die Baseline knapp nicht.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{final_metrics_by_seed}
+    \caption{Finale Mittelwerte; schwarze Punkte zeigen die drei Trainingsseeds nach Mittelung über die Evaluationsseeds.}
+    \label{fig:final_metrics}
+\end{figure}
+
+Die Punkte in Abbildung~\ref{fig:final_metrics} zeigen, dass die Unterschiede zwischen Trainingsläufen größer sind als zwischen den drei Evaluationsseeds desselben Modells. Tabelle~\ref{tab:seed_metrics} macht dies für den durchschnittlichen Reward sichtbar.
+
+\begin{table}[H]
+\centering
+\caption{Durchschnittlicher Reward je Trainingsseed}
+\label{tab:seed_metrics}
+\begin{tabular}{rrrr}
+\toprule
+\textbf{Trainingsseed} & \textbf{Baseline} & \textbf{Counting} & \textbf{Counting -- Baseline}\\
+\midrule
+1   & $-0{,}051878$ & $-0{,}049362$ & $+0{,}002516$\\
+42  & $-0{,}051873$ & $-0{,}049211$ & $+0{,}002662$\\
+123 & $-0{,}050935$ & $-0{,}050730$ & $+0{,}000205$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Counting liegt bei allen drei gleich benannten Trainingsseeds vorn, bei Seed 123 jedoch nur sehr knapp. Unter der vereinfachenden Annahme unabhängiger Episoden ergeben sich für die aggregierten Rewards enge 95\,\%-Intervalle von ungefähr $[-0{,}05218;-0{,}05094]$ für die Baseline und $[-0{,}05039;-0{,}04915]$ für Counting. Ordnet man die gleich benannten Trainingsseeds explorativ paarweise zu, ergibt ein zweiseitiger t-Test wegen $n=3$ nur $p=0{,}153$ und ein breites 95\,\%-Intervall von ungefähr $[-0{,}00163;0{,}00522]$. Der beobachtete Vorteil ist somit ein positives Ergebnis, aber noch kein robuster Signifikanznachweis über Trainingsläufe.
+
+\subsection{True-Count-Bucket-Analyse}
+
+Die zusätzlichen Zustandsmerkmale sind nur dann sinnvoll, wenn sie zu kontextabhängigem Verhalten führen. Abbildung~\ref{fig:true_count_effects} vergleicht deshalb Reward und Hit-Rate nach True Count zu Episodenbeginn.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{true_count_effects}
+    \caption{Gewichtete True-Count-Bucket-Auswertung über alle Trainings- und Evaluationsseeds.}
+    \label{fig:true_count_effects}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Counting-Vorteil und Aktionsanpassung nach True-Count-Bucket}
+\label{tab:bucket_diff}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Bucket} & \textbf{Reward-Differenz} & \textbf{Hit Baseline} & \textbf{Hit Counting}\\
+\midrule
+$\leq -3$ & $-0{,}003698$ & 46,244\,\% & 48,623\,\%\\
+$-2$ bis $0$ & $+0{,}002050$ & 47,580\,\% & 47,806\,\%\\
+$1$ bis $2$ & $+0{,}002934$ & 49,468\,\% & 47,854\,\%\\
+$\geq 3$ & $+0{,}003474$ & 49,363\,\% & 44,587\,\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Der Counting-Agent verändert seine Strategie deutlich: Bei stark negativem True Count zieht er häufiger als die Baseline, bei stark positivem True Count wesentlich seltener. Gleichzeitig verbessert er den Reward in allen Buckets ab $-2$, verliert aber im stark negativen Bucket. Dies beantwortet die erste Forschungsfrage grundsätzlich positiv: Die Zählinformationen beeinflussen die Policy und sind nicht bloß ungenutzte Zusatzdaten.
+
+Die absoluten Rewards werden in dieser vereinfachten Umgebung bei positivem True Count dennoch schlechter. Das widerspricht nur scheinbar der klassischen Blackjack-Intuition. Wesentliche Vorteile hoher Karten, insbesondere der erhöhte Natural-Payout, Double Down und angepasste Einsätze, fehlen. Die Analyse belegt daher eine relative Verbesserung des Counting-Agenten gegenüber der Baseline, aber keinen generellen Spielervorteil bei hohem True Count.
+
+\subsection{Qualitative Policy-Analyse}
+
+Die überarbeitete Visualisierung erzeugt für die qualitative Analyse einzelne Policy-Karten. Abbildung~\ref{fig:policy_counts} zeigt den Counting-Agenten mit Trainingsseed 42 für harte Hände bei True Count $-3$ und $+3$. Für einen vorgegebenen True Count werden die Q-Werte über Running Count und Deck-Bucket gemittelt; die Darstellung ist daher eine marginalisierte Übersicht und kein einzelner vollständiger Zustand.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{policy/counting-42/tc_-3/policy_hard}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{policy/counting-42/tc_3/policy_hard}
+    \end{minipage}
+    \caption{Marginalisierte Policy des Counting-Agenten 42 für harte Hände bei True Count $-3$ (links) und $+3$ (rechts).}
+    \label{fig:policy_counts}
+\end{figure}
+
+Die Karten bestätigen die quantitative Hit-Rate-Analyse: Bei negativem Count zieht der Agent in mehreren niedrigen und mittleren Händen häufiger. Bei positivem Count steht er häufiger, beispielsweise bei vielen Händen von 12 bis 16 gegen niedrige Dealer-Karten. Die Policy ist damit klar count-abhängig. Die Visualisierung rechtfertigt jedoch keine pauschale Einordnung als ``aggressiv'' oder ``konservativ'', weil diese Begriffe je nach konkreter Hand unterschiedliche Aktionen bedeuten können.
+
+\subsection{Vergleich der Hyperparameterexperimente}
+
+Die Hyperparametersuche zeigte, dass längere Exploration und $\gamma=0{,}99$ für den großen Counting-Zustandsraum günstiger waren als die ursprüngliche Standardkonfiguration. In Stufe C erreichte \texttt{c05\_long\_default} bei 20 Millionen Episoden $-0{,}05259$, während weitere Counting-Varianten zwischen $-0{,}05353$ und $-0{,}05528$ lagen. Die Baseline blieb zu diesem Zeitpunkt mit $-0{,}04906$ besser und benötigte nur etwa 280 statt rund 108.000 Zustände.
+
+Der finale 100-Millionen-Lauf bestätigt die Auswahl insofern, als Counting zur Baseline aufschließt und sie im aggregierten Endergebnis leicht übertrifft. Die Experimente erlauben jedoch keine isolierte Aussage darüber, welcher einzelne Hyperparameter dafür verantwortlich ist, da Konfigurationen als Kombinationen getestet wurden.
+
+\subsection{Analyse des besten Modells}
+
+Nach dem primären Endkriterium ist der Counting-Agent mit Trainingsseed 42 das beste finale Modell. Sein über die drei Evaluationsseeds gemittelter Reward beträgt $-0{,}049211$ bei einer Win Rate von $42{,}861\,\%$. Seed 1 liegt mit $-0{,}049362$ nahezu gleichauf. Die gute Leistung entsteht nicht durch eine einzelne dominante Kennzahl, sondern durch eine kleine Erhöhung der Gewinne und Verringerung der Verluste.
+
+Das Modell profitiert von seinem kontextabhängigen Verhalten, ist jedoch ineffizient: Für einen kleinen absoluten Reward-Gewinn benötigt es über 113.000 Zustände. Die Q-Tabelle generalisiert nicht zwischen ähnlichen Counts, Handwerten oder verbleibenden Deckzahlen. Seltene Zustände bleiben daher schwach geschätzt, und die Policy kann zwischen Seeds abweichen.

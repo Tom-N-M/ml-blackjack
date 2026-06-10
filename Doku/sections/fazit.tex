@@ -1,3 +1,8 @@
 \section{Fazit}
 \label{sec:fazit}
-Kurzes Schlusswort.
+
+Das Projekt zeigt, dass tabellarisches Q-Learning in einer diskreten Blackjack-Umgebung eine leistungsfähige Hit/Stand-Policy erlernen kann. Der Vergleich zweier Zustandsrepräsentationen macht zugleich die zentrale Abwägung sichtbar: Zusätzliche Kartenzählinformationen ermöglichen kontextabhängige Entscheidungen und verbessern die finale aggregierte Leistung leicht, vergrößern die Q-Tabelle aber um den Faktor 406.
+
+Der Counting-Agent erreicht nach 100 Millionen Episoden einen durchschnittlichen Reward von $-0{,}049767$ und liegt damit vor der Baseline mit $-0{,}051562$. Die Verbesserung ist über alle drei Trainingsseed-Paare positiv, aufgrund der kleinen Seed-Stichprobe jedoch nicht robust signifikant. Die True-Count-Analyse belegt eine aktive Nutzung der Zusatzmerkmale, während der Checkpoint-Verlauf gegen die Behauptung vollständiger Konvergenz spricht.
+
+Damit werden die Forschungsfragen differenziert beantwortet: Q-Learning kann Kartenzählinformationen nutzen; ihr messbarer Gesamtnutzen bleibt in der vereinfachten Umgebung gering; und 100 Millionen Episoden sind für den großen tabellarischen Zustandsraum eher ein belastbarer Zwischenstand als ein Endpunkt. Der wichtigste nächste Schritt ist nicht allein mehr Training, sondern eine kompaktere Zustandsrepräsentation, mehr unabhängige Seeds und eine realistischere Blackjack-Umgebung.

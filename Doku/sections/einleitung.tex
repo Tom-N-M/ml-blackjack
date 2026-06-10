@@ -1,5 +1,26 @@
-\section{Einleitung \& Fragestellung}
+\section{Einleitung}
 \label{sec:einleitung}
-Hier folgt die Einleitung. Beschreibt kurz die Relevanz von Reinforcement Learning. 
-\subsection{Zentrale Fragestellung}
-\textit{Kann ein auf Q-Learning basierender Reinforcement-Learning-Agent eigenständig erfolgreiche Strategien beim Blackjack erlernen, und inwiefern verbessert die native Integration von Kartenzählinformationen den Spielerfolg im Vergleich zu einer Standard-Strategie?}
+
+\subsection{Motivation}
+
+Reinforcement Learning (RL) behandelt Entscheidungsprobleme, in denen ein Agent durch Interaktion mit einer Umgebung lernt, seinen langfristigen kumulierten Reward zu maximieren~\cite{sutton2018reinforcement}. Blackjack eignet sich als anschauliches Untersuchungsobjekt, weil Aktionen, Zustände und Ergebnisse klar abgrenzbar sind, einzelne Runden kurz bleiben und dennoch Zufall sowie verzögerte Konsequenzen eine wesentliche Rolle spielen. Für eine gegebene Regelvariante existieren zudem mathematisch untersuchte Standardstrategien, wodurch gelernte Policies eingeordnet werden können~\cite{baldwin1956blackjack}.
+
+Eine Besonderheit von Blackjack ist, dass bereits gespielte Karten die Zusammensetzung des verbleibenden Kartenschlittens verändern. Kartenzählsysteme verdichten diese Historie zu Kennzahlen, um Entscheidungen und in realen Spielen vor allem Wetteinsätze an die verbleibende Kartenverteilung anzupassen~\cite{thorp1961favorable}. Daraus entsteht eine für Machine Learning relevante Frage: Lernt ein Agent eine bessere Strategie, wenn er neben der aktuellen Hand auch solche Kontextinformationen erhält, oder erschwert der stark vergrößerte Zustandsraum das Lernen stärker, als er nützt?
+
+Das Projekt untersucht diese Abwägung mit tabellarischem Q-Learning. Der Ansatz ist für diskrete Zustände und Aktionen transparent, benötigt kein neuronales Netz und erlaubt eine direkte Inspektion der gelernten Q-Werte. Gleichzeitig macht gerade diese Tabellenrepräsentation die Kosten zusätzlicher Merkmale sichtbar.
+
+\subsection{Forschungsfragen und Zielsetzung}
+
+Die Untersuchung wird durch drei Forschungsfragen geleitet:
+
+\begin{enumerate}
+    \item Kann ein Q-Learning-Agent Kartenzählinformationen aktiv für seine Aktionswahl nutzen?
+    \item Verbessert die erweiterte Zustandsrepräsentation die Leistung gegenüber einer Baseline ohne Zählinformationen?
+    \item Reichen 100 Millionen Trainingsepisoden aus, um eine stabile beziehungsweise konvergierte Policy zu erhalten?
+\end{enumerate}
+
+Das Ziel ist nicht der Nachweis einer profitablen Casino-Strategie. Die implementierte Umgebung reduziert Blackjack bewusst auf die Aktionen Hit und Stand, verwendet konstante Einsätze und zahlt einen Natural Blackjack nicht gesondert aus. Bewertet wird daher ausschließlich die Leistung innerhalb dieser Simulationsumgebung. Primärmaß ist der durchschnittliche Reward pro Episode; ergänzend werden Win-, Loss- und Push-Rate, Schwankungen über Trainingsseeds, die Größe der Q-Tabelle und das Verhalten in True-Count-Buckets betrachtet.
+
+\subsection{Aufbau der Arbeit}
+
+Kapitel~\ref{sec:hintergrund} beschreibt die Problemdefinition, die Simulationsumgebung und die Grundlagen von Q-Learning und Kartenzählen. Kapitel~\ref{sec:agenten_design} erläutert Datenquelle, Zustandsvorverarbeitung, Agentendesign und Hyperparameterwahl. Das experimentelle Vorgehen einschließlich Training, Evaluation, Reproduzierbarkeit und Projektorganisation folgt in Kapitel~\ref{sec:setup}. Kapitel~\ref{sec:evaluation} stellt die Ergebnisse vor. Abschließend diskutieren Kapitel~\ref{sec:diskussion} und~\ref{sec:fazit} die Forschungsfragen, Limitationen und mögliche Weiterentwicklungen.
