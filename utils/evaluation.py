@@ -1,7 +1,13 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from utils.env_utils import make_blackjack_env
+
+TRUE_COUNT_BUCKETS = [
+    ("<= -3", None, -3),
+    ("-2 to 0", -2, 0),
+    ("1 to 2", 1, 2),
+    (">= 3", 3, None),
+]
 
 def calculate_evaluation_cis(greedy_eval_df: pd.DataFrame, z_score: float = 1.96) -> pd.DataFrame:
     """
@@ -26,92 +32,6 @@ def calculate_evaluation_cis(greedy_eval_df: pd.DataFrame, z_score: float = 1.96
 
     return df[["win_rate", "Win Rate 95% CI", "loss_rate", "Loss Rate 95% CI", 
                "push_rate", "Push Rate 95% CI", "average_reward", "Avg Reward 95% CI"]]
-
-def plot_evaluation_metrics_with_cis(
-    greedy_eval_df: pd.DataFrame, 
-    agent_styles: dict, 
-    split_agent_name_func, 
-    save_fig_func=None, 
-    z_score: float = 1.96
-):
-    """
-    Erstellt 4 separate Plots für Win-, Loss-, Push-Rate und Average Reward
-    mit echten statistischen Konfidenzintervallen (gepoolte Daten über Seeds).
-    """
-    df = greedy_eval_df.copy().reset_index().rename(columns={"index": "agent_name"})
-    name_parts = df["agent_name"].apply(lambda n: pd.Series(split_agent_name_func(n), index=["agent_type", "seed"]))
-    df = pd.concat([df, name_parts], axis=1)
-
-    metric_columns = ["win_rate", "loss_rate", "push_rate", "average_reward", "std_reward", "episodes"]
-    for column in metric_columns:
-        df[column] = pd.to_numeric(df[column])
-
-    # Aggregation über die Seeds (Gewichtetes Pooling)
-    grouped = df.groupby("agent_type").agg({
-        "episodes": "sum",
-        "win_rate": "mean",
-        "loss_rate": "mean",
-        "push_rate": "mean",
-        "average_reward": "mean",
-        "std_reward": "mean"
-    }).reset_index()
-
-    # Fehlerbalken-Margen berechnen
-    grouped["win_ci"] = z_score * np.sqrt(grouped["win_rate"] * (1 - grouped["win_rate"]) / grouped["episodes"])
-    grouped["loss_ci"] = z_score * np.sqrt(grouped["loss_rate"] * (1 - grouped["loss_rate"]) / grouped["episodes"])
-    grouped["push_ci"] = z_score * np.sqrt(grouped["push_rate"] * (1 - grouped["push_rate"]) / grouped["episodes"])
-    grouped["avg_reward_ci"] = z_score * (grouped["std_reward"] / np.sqrt(grouped["episodes"]))
-
-    # Konfiguration für die 4 separaten Plots
-    metric_plot_config = [
-        ("win_rate", "win_ci", "Win Rate", (0, 0.6)),
-        ("loss_rate", "loss_ci", "Loss Rate", (0, 0.7)),
-        ("push_rate", "push_ci", "Push Rate", (0, 0.2)),
-        ("average_reward", "avg_reward_ci", "Average Reward", None),
-    ]
-
-    agent_types = [at for at in ["baseline", "counting"] if at in grouped["agent_type"].unique()]
-    x = np.arange(len(agent_types))
-    colors = [agent_styles[at]["color"] for at in agent_types]
-    labels = [agent_styles[at]["label"] for at in agent_types]
-
-    def grouped_value(agent_type, column):
-        return float(grouped[grouped["agent_type"].eq(agent_type)][column].iloc[0])
-
-    # Schleife erstellt nun für jede Metrik ein eigenes Figure-Objekt
-    for metric, ci_col, title, ylim in metric_plot_config:
-        fig, ax = plt.subplots(figsize=(8, 6))  # Einzelner Plot
-        
-        means = [grouped_value(at, metric) for at in agent_types]
-        cis = [grouped_value(at, ci_col) for at in agent_types]
-
-        # Balken mit statistischem Fehlerbalken (CI)
-        ax.bar(x, means, yerr=cis, color=colors, width=0.45, capsize=8, alpha=0.85, edgecolor='black')
-
-        # Jitter für die Einzeldaten (Seeds)
-        for idx, at in enumerate(agent_types):
-            values = df[df["agent_type"].eq(at)][metric].astype(float).tolist()
-            jitter = np.linspace(-0.06, 0.06, len(values)) if len(values) > 1 else np.array([0.0])
-            ax.scatter(np.full(len(values), idx) + jitter, np.asarray(values), color="black", edgecolor="white", s=45, zorder=3, alpha=0.8)
-
-        ax.set_title(f"{title} (Greedy Evaluation mit 95% CI)")
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.set_ylabel(metric)
-        if ylim is not None:
-            ax.set_ylim(*ylim)
-
-        for idx, value in enumerate(means):
-            ax.text(idx, value, f"{value:.3f}", ha="center", va="bottom", fontweight="bold")
-
-        plt.tight_layout()
-        
-        # Speichern mit dynamischem Namen pro Metrik
-        if save_fig_func:
-            save_fig_func(f"final_evaluation_{metric}_with_ci")
-            
-        plt.show()
-        
 
 def evaluate_single_agent_parallel(agent_name, q_values, state_encoder, source_label, n_episodes, base_seed, progress_dict=None):
     # Absolut sauberer Import, kein sys.modules-Hack unter Windows nötig!
@@ -487,85 +407,3 @@ def true_count_bucket_comparison_rows(summary_df, seed_df, selected_comparisons,
     if not frames:
         return pd.DataFrame(columns=TRUE_COUNT_BUCKET_SUMMARY_COLUMNS)
     return pd.concat(frames, ignore_index=True)
-
-
-def plot_true_count_bucket_comparison(
-    summary_df,
-    seed_df,
-    buckets,
-    metric,
-    aggregation,
-    selected_comparisons,
-    summary_columns=None,
-):
-    summary_columns = summary_columns or TRUE_COUNT_BUCKET_SUMMARY_COLUMNS
-    df = true_count_bucket_comparison_rows(summary_df, seed_df, selected_comparisons, aggregation)
-    if df.empty:
-        print("Keine Auswahl getroffen.")
-        return pd.DataFrame(columns=summary_columns)
-
-    bucket_order = [label for label, _, _ in buckets]
-    df = df.copy()
-    df["bucket"] = pd.Categorical(df["bucket"], categories=bucket_order, ordered=True)
-    df = df.sort_values(["bucket", "comparison_id"])
-
-    pivot = df.pivot(index="bucket", columns="comparison_id", values=metric).reindex(bucket_order)
-    ax = pivot.plot(kind="bar", figsize=(12, 6), width=0.82)
-    ax.set_title(f"{metric} nach True-Count-Bucket")
-    ax.set_xlabel("True-Count-Bucket")
-    ax.set_ylabel(metric)
-    ax.legend(title="Agent / Checkpoint", bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.xticks(rotation=0)
-    plt.tight_layout()
-    plt.show()
-
-    return df[summary_columns]
-
-
-def create_true_count_bucket_widget(summary_df, seed_df, buckets):
-    import ipywidgets as widgets
-    from IPython.display import display
-
-    comparison_options = true_count_bucket_comparison_options(summary_df, seed_df)
-    default_comparisons = tuple(
-        item for item in ("baseline (all seeds)", "counting (all seeds)")
-        if item in comparison_options
-    )
-    if not default_comparisons:
-        default_comparisons = tuple(comparison_options[:2])
-
-    metric_selector = widgets.Dropdown(
-        options=TRUE_COUNT_BUCKET_METRICS,
-        value="average_reward",
-        description="Metrik:",
-    )
-    aggregation_selector = widgets.Dropdown(
-        options=[("Mittelwert über Seeds", "mean"), ("Median über Seeds", "median"), ("Gewichtet", "weighted")],
-        value="mean",
-        description="Aggregation:",
-    )
-    comparison_selector = widgets.SelectMultiple(
-        options=comparison_options,
-        value=default_comparisons,
-        description="Vergleich:",
-        layout=widgets.Layout(width="760px", height="180px"),
-    )
-
-    def plot_bucket_comparison(metric, aggregation, selected_comparisons):
-        comparison_df = plot_true_count_bucket_comparison(
-            summary_df=summary_df,
-            seed_df=seed_df,
-            buckets=buckets,
-            metric=metric,
-            aggregation=aggregation,
-            selected_comparisons=selected_comparisons,
-            summary_columns=TRUE_COUNT_BUCKET_SUMMARY_COLUMNS,
-        )
-        display(comparison_df)
-
-    return widgets.interactive(
-        plot_bucket_comparison,
-        metric=metric_selector,
-        aggregation=aggregation_selector,
-        selected_comparisons=comparison_selector,
-    )
