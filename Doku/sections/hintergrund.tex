@@ -1,0 +1,17 @@
+\section{Theoretischer Hintergrund \& Simulationsumgebung}
+\label{sec:hintergrund}
+Erklärung der Spielregeln und eurer Simulations-Konfiguration aus dem Custom Environment.
+
+\subsection{Eigenschaften der Simulationsumgebung}
+Die Parameter eures Setups:
+\begin{itemize}
+    \item Anzahl der Kartendecks ($n = 6$)
+    \item Schnitttiefe des Schlittens (Penetration = $0.75$)
+    \item Dealer-Regel: \textit{Stand on Soft 17}
+\end{itemize}
+
+\subsection{Grundlagen des Tabular Q-Learning}
+Die Aktualisierung der Q-Werte erfolgt nach der bekannten Bellman-Gleichung:
+\begin{equation}
+    Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]
+\end{equation}
