@@ -1,3 +1,7 @@
 .vscode
 .conda
 __pycache__
+
+**/Doku/out/*
+
+!**/Doku/out/*.pdf

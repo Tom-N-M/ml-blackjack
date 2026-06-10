@@ -1,0 +1,28 @@
+\section{Agenten-Design \& Zustands-Vorbereitung}
+\label{sec:agenten_design}
+
+\subsection{Zustandsrepräsentation}
+Hier wird erklärt, warum die Zustände so kodiert wurden (z.~B. mit \texttt{np.clip}).
+\begin{description}
+    \item[Baseline-Agent:] \texttt{(player\_total, dealer\_upcard, usable\_ace)}
+    \item[Counting-Agent:] \texttt{(player\_total, dealer\_upcard, usable\_ace, running\_count, true\_count, cards\_remaining)}
+\end{description}
+
+\subsection{Hyperparameter-Konfiguration}
+Die Hyperparameter-Wahl der \texttt{agent\_config} lässt sich übersichtlich in einer Tabelle darstellen:
+
+\begin{table}[H]
+\centering
+\caption{Konfiguration der Hyperparameter im Training}
+\label{tab:hyperparameters}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Hyperparameter} & \textbf{Wert / Strategie} \\
+\midrule
+Lernrate ($\alpha$) & $0.01$ \\
+Diskontierungsfaktor ($\gamma$) & $0.99$ \\
+Explorationsstrategie & $\epsilon$-Decay von $1.0$ auf $0.10$ \\
+Decay-Dauer & Über $90\%$ der Trainingsepisoden \\
+\bottomrule
+\end{tabularx}
+\end{table}
