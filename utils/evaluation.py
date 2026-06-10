@@ -27,7 +27,6 @@ def calculate_evaluation_cis(greedy_eval_df: pd.DataFrame, z_score: float = 1.96
     return df[["win_rate", "Win Rate 95% CI", "loss_rate", "Loss Rate 95% CI", 
                "push_rate", "Push Rate 95% CI", "average_reward", "Avg Reward 95% CI"]]
 
-
 def plot_evaluation_metrics_with_cis(
     greedy_eval_df: pd.DataFrame, 
     agent_styles: dict, 
@@ -36,7 +35,7 @@ def plot_evaluation_metrics_with_cis(
     z_score: float = 1.96
 ):
     """
-    Erstellt ein 2x2 Grid für Win-, Loss-, Push-Rate und Average Reward
+    Erstellt 4 separate Plots für Win-, Loss-, Push-Rate und Average Reward
     mit echten statistischen Konfidenzintervallen (gepoolte Daten über Seeds).
     """
     df = greedy_eval_df.copy().reset_index().rename(columns={"index": "agent_name"})
@@ -63,10 +62,7 @@ def plot_evaluation_metrics_with_cis(
     grouped["push_ci"] = z_score * np.sqrt(grouped["push_rate"] * (1 - grouped["push_rate"]) / grouped["episodes"])
     grouped["avg_reward_ci"] = z_score * (grouped["std_reward"] / np.sqrt(grouped["episodes"]))
 
-    # 2x2 Plot Setup
-    fig, axs = plt.subplots(2, 2, figsize=(16, 12))
-    axs = axs.ravel()
-
+    # Konfiguration für die 4 separaten Plots
     metric_plot_config = [
         ("win_rate", "win_ci", "Win Rate", (0, 0.6)),
         ("loss_rate", "loss_ci", "Loss Rate", (0, 0.7)),
@@ -82,13 +78,17 @@ def plot_evaluation_metrics_with_cis(
     def grouped_value(agent_type, column):
         return float(grouped[grouped["agent_type"].eq(agent_type)][column].iloc[0])
 
-    for ax, (metric, ci_col, title, ylim) in zip(axs, metric_plot_config):
+    # Schleife erstellt nun für jede Metrik ein eigenes Figure-Objekt
+    for metric, ci_col, title, ylim in metric_plot_config:
+        fig, ax = plt.subplots(figsize=(8, 6))  # Einzelner Plot
+        
         means = [grouped_value(at, metric) for at in agent_types]
         cis = [grouped_value(at, ci_col) for at in agent_types]
 
-        # Balken mit statistischem Fehlerbalken (CI) statt simpler Standardabweichung der Seeds
+        # Balken mit statistischem Fehlerbalken (CI)
         ax.bar(x, means, yerr=cis, color=colors, width=0.45, capsize=8, alpha=0.85, edgecolor='black')
 
+        # Jitter für die Einzeldaten (Seeds)
         for idx, at in enumerate(agent_types):
             values = df[df["agent_type"].eq(at)][metric].astype(float).tolist()
             jitter = np.linspace(-0.06, 0.06, len(values)) if len(values) > 1 else np.array([0.0])
@@ -104,11 +104,14 @@ def plot_evaluation_metrics_with_cis(
         for idx, value in enumerate(means):
             ax.text(idx, value, f"{value:.3f}", ha="center", va="bottom", fontweight="bold")
 
-    plt.tight_layout()
-    if save_fig_func:
-        save_fig_func("final_evaluation_metrics_with_cis")
-    plt.show()
-
+        plt.tight_layout()
+        
+        # Speichern mit dynamischem Namen pro Metrik
+        if save_fig_func:
+            save_fig_func(f"final_evaluation_{metric}_with_ci")
+            
+        plt.show()
+        
 
 def evaluate_single_agent_parallel(agent_name, q_values, state_encoder, source_label, n_episodes, base_seed, progress_dict=None):
     # Absolut sauberer Import, kein sys.modules-Hack unter Windows nötig!
