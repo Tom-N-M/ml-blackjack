@@ -1,74 +1,31 @@
-\documentclass[11pt,a4paper,bibliography=totoc,listof=totoc]{scrartcl}
-
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[ngerman]{babel}
-\usepackage{lmodern}
-\usepackage{microtype}
-\usepackage[left=30mm,right=25mm,top=25mm,bottom=25mm]{geometry}
-\usepackage{setspace}
-\onehalfspacing
-
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{graphicx}
-\usepackage{float}
-\usepackage[labelfont=bf]{caption}
-\usepackage{xcolor}
-\usepackage{listings}
-\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+\documentclass{bhhproject}
 
 \graphicspath{{figures/}{../images/}}
-\setlength{\emergencystretch}{2em}
-\setcounter{tocdepth}{2}
 
-\definecolor{codegreen}{rgb}{0,0.5,0}
-\definecolor{codegray}{rgb}{0.45,0.45,0.45}
-\definecolor{backcolour}{rgb}{0.96,0.96,0.94}
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    basicstyle=\ttfamily\footnotesize,
-    breaklines=true,
-    keepspaces=true,
-    numbers=left,
-    numbersep=5pt,
-    showstringspaces=false,
-    tabsize=2
-}
-\lstset{style=mystyle}
+\projectmodule{Machine Learning}
+\projectsemester{Sommersemester 2026}
+\projecttype{Projektdokumentation}
+\projecttitle{Evaluation von Q-Learning-Agenten im stochastischen
+Informationsspiel Blackjack}
+\projectshorttitle{Q-Learning-Agenten für Blackjack}
+\projectsubtitle{Ausarbeitung im Rahmen des Moduls Machine Learning}
+\projectpdfauthors{Linus Paliga, Tom Markmann, Arvid Freese}
+\projectplace{Hamburg}
+\projectdate{16. Juni 2026}
+
+% Pro beteiligter Person genau einen Eintrag anlegen. Die Klasse unterstützt
+% eine beliebige Anzahl; für zwei bis vier Personen passt die Tabelle
+% auf eine Seite.
+\addprojectauthor{Linus Paliga}{xxxxxx}{Osterbrook 13c, 20537
+Hamburg}{l.paliga@stud.bhh.de}
+\addprojectauthor{Tom Markmann}{227365}{Lämmersieth 33, 22305
+Hamburg}{t.markmann@stud.bhh.de}
+\addprojectauthor{Arvid Freese}{xxxxxx}{Albers-Schönberg-Stieg 21,
+22307 Hamburg}{a.freese@stud.bhh.de}
 
 \begin{document}
 
-\hypersetup{pageanchor=false}
-\begin{titlepage}
-    \begin{center}
-        \vspace*{1.5cm}
-        {\large BHH -- Informatik\par}
-        \vspace{0.6cm}
-        {\large Machine Learning\par}
-        \vspace{2.3cm}
-        {\huge\bfseries Evaluation von Q-Learning-Agenten im stochastischen Informationsspiel Blackjack\par}
-        \vspace{1.2cm}
-        {\Large Projektdokumentation\par}
-    \end{center}
-
-    \vfill
-
-    \begin{tabular}{@{}ll@{}}
-        \textbf{Projektgruppe:} & Linus Paliga\\
-                               & Tom Niklas Markmann\\
-                               & Arvid Freese\\[0.4cm]
-        \textbf{Abgabe:}        & Hamburg, 16. Juni 2026\\
-        \textbf{Repository:}    & \url{https://github.com/Tom-N-M/ml-blackjack}
-    \end{tabular}
-\end{titlepage}
-
-\hypersetup{pageanchor=true}
+\makeprojecttitle
 \pagenumbering{Roman}
 \input{sections/abstract}
 \newpage

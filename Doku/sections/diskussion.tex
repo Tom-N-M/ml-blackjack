@@ -4,47 +4,144 @@
 \subsection{Beantwortung der Forschungsfragen}
 
 \paragraph{Kann Q-Learning Kartenzählinformationen nutzen?}
-Ja. Die True-Count-Bucket-Analyse zeigt systematische Unterschiede in der Aktionswahl. Besonders deutlich ist die um fast 4,8 Prozentpunkte niedrigere Hit-Rate des Counting-Agenten bei einem True Count von mindestens drei. Dass sich die relative Performance gegenüber der Baseline über die Buckets verändert, spricht ebenfalls für eine aktive Nutzung. Ein strenger Kausalnachweis würde jedoch eine Ablation benötigen, bei der einzelne Zusatzmerkmale entfernt oder permutiert werden.
+Ja. Die True-Count-Bucket-Analyse zeigt systematische Unterschiede in
+der Aktionswahl. Besonders deutlich ist die um fast 4,8 Prozentpunkte
+niedrigere Hit-Rate des Counting-Agenten bei einem True Count von
+mindestens drei. Dass sich die relative Performance gegenüber der
+Baseline über die Buckets verändert, spricht ebenfalls für eine
+aktive Nutzung. Ein strenger Kausalnachweis würde jedoch eine
+Ablation benötigen, bei der einzelne Zusatzmerkmale entfernt oder
+permutiert werden.
 
 \paragraph{Verbessern die erweiterten Features die Performance?}
-Im finalen aggregierten Experiment ja, aber nur geringfügig. Der Counting-Agent verbessert den durchschnittlichen Reward um $0{,}001794$ und die Win Rate um 0,087 Prozentpunkte. Dieser Vorteil tritt in allen drei Trainingsseed-Paaren auf, ist wegen der sehr kleinen Zahl unabhängiger Trainingsläufe aber nicht robust signifikant. Dem Gewinn steht eine rund 406-mal größere Q-Tabelle gegenüber. Für tabellarisches Q-Learning ist das Verhältnis von zusätzlicher Komplexität zu Performancegewinn ungünstig.
+Im finalen aggregierten Experiment ja, aber nur geringfügig. Der
+Counting-Agent verbessert den durchschnittlichen Reward um
+$0{,}001794$ und die Win Rate um 0,087 Prozentpunkte. Dieser Vorteil
+tritt in allen drei Trainingsseed-Paaren auf, ist wegen der sehr
+kleinen Zahl unabhängiger Trainingsläufe aber nicht robust
+signifikant. Dem Gewinn steht eine rund 406-mal größere Q-Tabelle
+gegenüber. Für tabellarisches Q-Learning ist das Verhältnis von
+zusätzlicher Komplexität zu Performancegewinn ungünstig.
 
 \paragraph{Wie viele Episoden werden bis zur Konvergenz benötigt?}
-100 Millionen Episoden reichen aus, damit Counting zur Baseline aufschließt, nicht aber für einen belastbaren Konvergenznachweis. Die Checkpoint-Leistung schwankt weiterhin und die Q-Tabelle wächst noch. Auch die konstante Lernrate und die verbleibende Exploration von $\epsilon=0{,}1$ erfüllen keine hinreichenden Bedingungen, um theoretische Konvergenz zu behaupten. Längere Läufe könnten weitere Erkenntnisse liefern, sollten aber mit zusätzlichen Seeds und Checkpoint-Evaluationen kombiniert werden.
+100 Millionen Episoden reichen aus, damit Counting zur Baseline
+aufschließt, nicht aber für einen belastbaren Konvergenznachweis. Die
+Checkpoint-Leistung schwankt weiterhin und die Q-Tabelle wächst noch.
+Auch die konstante Lernrate und die verbleibende Exploration von
+$\epsilon=0{,}1$ erfüllen keine hinreichenden Bedingungen, um
+theoretische Konvergenz zu behaupten. Längere Läufe könnten weitere
+Erkenntnisse liefern, sollten aber mit zusätzlichen Seeds und
+Checkpoint-Evaluationen kombiniert werden.
 
 \subsection{Herausforderungen}
 
 \paragraph{Exploration und großer Zustandsraum.}
-Die Baseline besucht ihre kleine Zustandsmenge schnell und kann Q-Werte häufig aktualisieren. Counting verteilt dieselbe Zahl an Episoden auf mehr als 100.000 Zustände. Viele Kombinationen treten selten auf, wodurch einzelne Schätzungen verrauscht bleiben. Ein längerer $\epsilon$-Decay hilft bei der Abdeckung, verzögert aber die Ausnutzung guter Policies.
+Die Baseline besucht ihre kleine Zustandsmenge schnell und kann
+Q-Werte häufig aktualisieren. Counting verteilt dieselbe Zahl an
+Episoden auf mehr als 100.000 Zustände. Viele Kombinationen treten
+selten auf, wodurch einzelne Schätzungen verrauscht bleiben. Ein
+längerer $\epsilon$-Decay hilft bei der Abdeckung, verzögert aber die
+Ausnutzung guter Policies.
 
 \paragraph{Stochastik und Evaluation.}
-Millionen Testepisoden reduzieren das Monte-Carlo-Rauschen einer festen Policy stark. Sie ersetzen jedoch keine unabhängigen Trainingsläufe. Die Ergebnisse von Seed 123 demonstrieren, dass ein Modell trotz identischer Hyperparameter anders enden kann. Künftige Aussagen über Signifikanz sollten deshalb auf mehr Trainingsseeds statt ausschließlich auf noch mehr Episoden pro Eval-Seed beruhen.
+Millionen Testepisoden reduzieren das Monte-Carlo-Rauschen einer
+festen Policy stark. Sie ersetzen jedoch keine unabhängigen
+Trainingsläufe. Die Ergebnisse von Seed 123 demonstrieren, dass ein
+Modell trotz identischer Hyperparameter anders enden kann. Künftige
+Aussagen über Signifikanz sollten deshalb auf mehr Trainingsseeds
+statt ausschließlich auf noch mehr Episoden pro Eval-Seed beruhen.
 
 \paragraph{Rechen- und Speicheraufwand.}
-Das finale Training dauerte trotz paralleler Ausführung rund 13 Stunden. Counting-Checkpoints sind ungefähr 6,3 MB groß, Baseline-Checkpoints nur rund 32 KB. Noch längere Läufe erhöhen Laufzeit und Artefaktmenge, ohne dass tabellarisches Q-Learning zwischen ähnlichen Zuständen Wissen übertragen kann.
+Das finale Training dauerte trotz paralleler Ausführung rund 13
+Stunden. Counting-Checkpoints sind ungefähr 6,3 MB groß,
+Baseline-Checkpoints nur rund 32 KB. Noch längere Läufe erhöhen
+Laufzeit und Artefaktmenge, ohne dass tabellarisches Q-Learning
+zwischen ähnlichen Zuständen Wissen übertragen kann.
 
 \subsection{Grenzen der Aussagekraft}
 
-Die Simulationsumgebung bildet nur einen Ausschnitt realer Blackjack-Regeln ab. Naturals erhalten keinen 3:2-Payout; Double Down, Split, Insurance, Surrender und variable Einsätze fehlen. Gerade Kartenzählen wird in der Praxis überwiegend für die Anpassung von Einsätzen verwendet. Der hier gemessene Nutzen unterschätzt oder verändert daher potenzielle Effekte eines vollständigen Spiels.
+Die Simulationsumgebung bildet nur einen Ausschnitt realer
+Blackjack-Regeln ab. Naturals erhalten keinen 3:2-Payout; Double
+Down, Split, Insurance, Surrender und variable Einsätze fehlen.
+Gerade Kartenzählen wird in der Praxis überwiegend für die Anpassung
+von Einsätzen verwendet. Der hier gemessene Nutzen unterschätzt oder
+verändert daher potenzielle Effekte eines vollständigen Spiels.
 
-Running Count, True Count und verbleibende Decks sind redundant. Dies erleichtert dem Agenten möglicherweise bestimmte Entscheidungen, vergrößert aber den Zustandsraum unnötig. Außerdem wird der True Count ganzzahlig abgeschnitten und geclippt. Die Bucket-Evaluation ordnet eine Episode nach ihrem Anfangszustand ein, obwohl sich der Count während der Runde verändern kann. Die Aktionsraten berücksichtigen zwar den aktuellen Count, der Episodenreward bleibt jedoch dem Start-Bucket zugeordnet.
+Running Count, True Count und verbleibende Decks sind redundant. Dies
+erleichtert dem Agenten möglicherweise bestimmte Entscheidungen,
+vergrößert aber den Zustandsraum unnötig. Außerdem wird der True
+Count ganzzahlig abgeschnitten und geclippt. Die Bucket-Evaluation
+ordnet eine Episode nach ihrem Anfangszustand ein, obwohl sich der
+Count während der Runde verändern kann. Die Aktionsraten
+berücksichtigen zwar den aktuellen Count, der Episodenreward bleibt
+jedoch dem Start-Bucket zugeordnet.
 
-Die vorhandene Basic-Strategy-Visualisierung dient nur als qualitative Hilfe. Da die Projektumgebung eine reduzierte Regelmenge verwendet und die Visualisierung nicht alle Zustandsdetails des Counting-Agenten realistisch rekonstruiert, ist sie kein formaler Optimalitätsnachweis.
+Die vorhandene Basic-Strategy-Visualisierung dient nur als
+qualitative Hilfe. Da die Projektumgebung eine reduzierte Regelmenge
+verwendet und die Visualisierung nicht alle Zustandsdetails des
+Counting-Agenten realistisch rekonstruiert, ist sie kein formaler
+Optimalitätsnachweis.
 
-Auch die exakte Reproduzierbarkeit eines vollständigen Neutrainings ist eingeschränkt. Umgebung und Action Space werden explizit geseedet, die globale NumPy-Zufallsquelle für die $\epsilon$-greedy Aktionswahl jedoch nicht pro Trainingsprozess gesetzt. Die gespeicherten Modelle erlauben eine reproduzierbare greedy Evaluation der berichteten Ergebnisse; ein erneuter Trainingslauf mit denselben nominellen Seeds muss dagegen nicht bitidentisch enden. Künftig sollte jeder Worker einen eigenen, explizit gesetzten Zufallszahlengenerator verwenden.
+Auch die exakte Reproduzierbarkeit eines vollständigen Neutrainings
+ist eingeschränkt. Umgebung und Action Space werden explizit
+geseedet, die globale NumPy-Zufallsquelle für die $\epsilon$-greedy
+Aktionswahl jedoch nicht pro Trainingsprozess gesetzt. Die
+gespeicherten Modelle erlauben eine reproduzierbare greedy Evaluation
+der berichteten Ergebnisse; ein erneuter Trainingslauf mit denselben
+nominellen Seeds muss dagegen nicht bitidentisch enden. Künftig
+sollte jeder Worker einen eigenen, explizit gesetzten
+Zufallszahlengenerator verwenden.
 
 \subsection{Verbesserungsmöglichkeiten}
 
-Die unmittelbarsten Verbesserungen betreffen die Validität und Effizienz des bestehenden Q-Learning-Experiments. Separate Agenten mit ausschließlich True Count, Running Count oder verbleibenden Decks würden in einer Ablationsstudie zeigen, welche Merkmale tatsächlich Nutzen stiften. Auf dieser Grundlage könnte eine kompaktere Zustandsrepräsentation entwickelt werden, die redundante Kombinationen vermeidet. Ein längerer Lauf mit bis zu 500 Millionen Episoden ist erst danach sinnvoll und sollte durch feste Checkpoints sowie mindestens zehn Trainingsläufe abgesichert werden.
+Die unmittelbarsten Verbesserungen betreffen die Validität und
+Effizienz des bestehenden Q-Learning-Experiments. Separate Agenten
+mit ausschließlich True Count, Running Count oder verbleibenden Decks
+würden in einer Ablationsstudie zeigen, welche Merkmale tatsächlich
+Nutzen stiften. Auf dieser Grundlage könnte eine kompaktere
+Zustandsrepräsentation entwickelt werden, die redundante
+Kombinationen vermeidet. Ein längerer Lauf mit bis zu 500 Millionen
+Episoden ist erst danach sinnvoll und sollte durch feste Checkpoints
+sowie mindestens zehn Trainingsläufe abgesichert werden.
 
-Die Umgebung sollte um Natural-Payout, Double Down, Split, Surrender und variable Einsätze erweitert werden. Erst dann lässt sich untersuchen, ob ein positiver Count tatsächlich in einen positiven erwarteten Gewinn oder eine geeignete Einsatzstrategie übersetzt werden kann. Eine passende Reward-Funktion könnte statt eines konstanten Rundenergebnisses den Nettoertrag inklusive Einsatzhöhe abbilden.
+Die Umgebung sollte um Natural-Payout, Double Down, Split, Surrender
+und variable Einsätze erweitert werden. Erst dann lässt sich
+untersuchen, ob ein positiver Count tatsächlich in einen positiven
+erwarteten Gewinn oder eine geeignete Einsatzstrategie übersetzt
+werden kann. Eine passende Reward-Funktion könnte statt eines
+konstanten Rundenergebnisses den Nettoertrag inklusive Einsatzhöhe abbilden.
 
-Zusätzlich sollte das Evaluationsprotokoll stärker auf Trainingsunsicherheit ausgerichtet werden. Mehr unabhängige Trainingsläufe sind aussagekräftiger als eine weitere Vergrößerung der bereits umfangreichen Evaluation einzelner Modelle. Explizit gesetzte Zufallszahlengeneratoren pro Worker und unveränderliche Manifeste für alle ausgewerteten Artefakte würden die Wiederholbarkeit verbessern.
+Zusätzlich sollte das Evaluationsprotokoll stärker auf
+Trainingsunsicherheit ausgerichtet werden. Mehr unabhängige
+Trainingsläufe sind aussagekräftiger als eine weitere Vergrößerung
+der bereits umfangreichen Evaluation einzelner Modelle. Explizit
+gesetzte Zufallszahlengeneratoren pro Worker und unveränderliche
+Manifeste für alle ausgewerteten Artefakte würden die
+Wiederholbarkeit verbessern.
 
 \subsection{Ausblick}
 
-Über diese direkten Verbesserungen hinaus bieten sich mehrere methodische Erweiterungen an. Transfer Learning könnte die Baseline-Policy als Initialisierung oder Lehrer für den Counting-Agenten verwenden. Dadurch müsste die grundlegende Hit/Stand-Strategie nicht erneut für jeden Count-Zustand gelernt werden.
+Über diese direkten Verbesserungen hinaus bieten sich mehrere
+methodische Erweiterungen an. Transfer Learning könnte die
+Baseline-Policy als Initialisierung oder Lehrer für den
+Counting-Agenten verwenden. Dadurch müsste die grundlegende
+Hit/Stand-Strategie nicht erneut für jeden Count-Zustand gelernt werden.
 
-Für größere Zustands- und Aktionsräume bietet sich anschließend Funktionsapproximation an. Ein Deep Q-Network (DQN) ist aufgrund des diskreten Aktionsraums eine naheliegende wertbasierte Alternative und könnte Wissen zwischen ähnlichen Zuständen teilen. Proximal Policy Optimization (PPO) würde als Policy-Gradient-Verfahren einen methodisch anderen Vergleich ermöglichen und insbesondere bei zusätzlichen Aktionen relevant werden. Beide Verfahren führen jedoch neue Hyperparameter, höhere Rechenkosten und mögliche Trainingsinstabilität ein. Ein fairer Vergleich muss deshalb dasselbe Seed-, Checkpoint- und Evaluationsprotokoll wie das tabellarische Q-Learning verwenden.
+Für größere Zustands- und Aktionsräume bietet sich anschließend
+Funktionsapproximation an. Ein Deep Q-Network (DQN) ist aufgrund des
+diskreten Aktionsraums eine naheliegende wertbasierte Alternative und
+könnte Wissen zwischen ähnlichen Zuständen teilen. Proximal Policy
+Optimization (PPO) würde als Policy-Gradient-Verfahren einen
+methodisch anderen Vergleich ermöglichen und insbesondere bei
+zusätzlichen Aktionen relevant werden. Beide Verfahren führen jedoch
+neue Hyperparameter, höhere Rechenkosten und mögliche
+Trainingsinstabilität ein. Ein fairer Vergleich muss deshalb dasselbe
+Seed-, Checkpoint- und Evaluationsprotokoll wie das tabellarische
+Q-Learning verwenden.
 
-Multi-Agent Reinforcement Learning ist für die aktuelle Aufgabe weniger vordringlich, weil der Dealer einer festen Regel folgt und nicht lernt. Es könnte erst bei mehreren interagierenden Spielern oder adaptiven Gegenspielern relevant werden. Ein Einsatz in realen Spielsituationen wäre nur nach einer deutlich realistischeren Umgebung und einer rechtlichen sowie ethischen Bewertung sinnvoll.
+Multi-Agent Reinforcement Learning ist für die aktuelle Aufgabe
+weniger vordringlich, weil der Dealer einer festen Regel folgt und
+nicht lernt. Es könnte erst bei mehreren interagierenden Spielern
+oder adaptiven Gegenspielern relevant werden. Ein Einsatz in realen
+Spielsituationen wäre nur nach einer deutlich realistischeren
+Umgebung und einer rechtlichen sowie ethischen Bewertung sinnvoll.

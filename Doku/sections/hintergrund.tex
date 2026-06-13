@@ -3,62 +3,126 @@
 
 \subsection{Blackjack als episodisches Entscheidungsproblem}
 
-Zu Beginn einer Runde erhalten Spieler und Dealer jeweils zwei Karten. Eine Dealer-Karte bleibt zunächst verdeckt. Der Spieler kann in der implementierten Variante entweder eine weitere Karte ziehen (\emph{Hit}) oder keine weitere Karte anfordern (\emph{Stand}). Überschreitet die Hand den Wert 21, ist die Runde unmittelbar verloren. Nach Stand zieht der Dealer regelbasiert bis mindestens 17. Ein Ass zählt als elf, sofern die Hand dadurch 21 nicht überschreitet, andernfalls als eins.
+Zu Beginn einer Runde erhalten Spieler und Dealer jeweils zwei
+Karten. Eine Dealer-Karte bleibt zunächst verdeckt. Der Spieler kann
+in der implementierten Variante entweder eine weitere Karte ziehen
+(\emph{Hit}) oder keine weitere Karte anfordern (\emph{Stand}).
+Überschreitet die Hand den Wert 21, ist die Runde unmittelbar
+verloren. Nach Stand zieht der Dealer regelbasiert bis mindestens 17.
+Ein Ass zählt als elf, sofern die Hand dadurch 21 nicht
+überschreitet, andernfalls als eins.
 
-Die Umgebung verwendet einen endlichen Kartenschlitten aus sechs Decks. Nach ungefähr 75\,\% Penetration wird neu gemischt; konkret erfolgt der Reshuffle, sobald höchstens 78 der ursprünglich 312 Karten verbleiben. Der Dealer steht auf einer Soft 17. Die verdeckte Dealer-Karte wird erst beim Aufdecken in den Running Count aufgenommen. Dadurch erhält der Agent keine Information, die einem realen Spieler während seiner Entscheidung nicht zur Verfügung stünde.
+Die Umgebung verwendet einen endlichen Kartenschlitten aus sechs
+Decks. Nach ungefähr 75\,\% Penetration wird neu gemischt; konkret
+erfolgt der Reshuffle, sobald höchstens 78 der ursprünglich 312
+Karten verbleiben. Der Dealer steht auf einer Soft 17. Die verdeckte
+Dealer-Karte wird erst beim Aufdecken in den Running Count
+aufgenommen. Dadurch erhält der Agent keine Information, die einem
+realen Spieler während seiner Entscheidung nicht zur Verfügung stünde.
 
-Die Umgebung folgt der standardisierten \texttt{reset}/\texttt{step}-Schnittstelle von Gymnasium~\cite{towers2024gymnasium}. Eine Episode entspricht genau einer Blackjack-Runde. Der Kartenschlitten bleibt jedoch über mehrere Episoden erhalten, bis die Cut Card erreicht wird. Diese Kopplung ist notwendig, damit Kartenzählen überhaupt einen Informationswert besitzt.
+Die Umgebung folgt der standardisierten
+\texttt{reset}/\texttt{step}-Schnittstelle von
+Gymnasium~\cite{towers2024gymnasium}. Eine Episode entspricht genau
+einer Blackjack-Runde. Der Kartenschlitten bleibt jedoch über mehrere
+Episoden erhalten, bis die Cut Card erreicht wird. Diese Kopplung ist
+notwendig, damit Kartenzählen überhaupt einen Informationswert besitzt.
 
 \subsection{Zustands- und Aktionsraum}
 
 Die Rohbeobachtung der Umgebung ist
 \begin{equation}
-o_t=(p_t,d_t,a_t,r_t,c_t,m_t),
+  o_t=(p_t,d_t,a_t,r_t,c_t,m_t),
 \end{equation}
-wobei $p_t$ den Handwert des Spielers, $d_t$ die offene Dealer-Karte, $a_t$ ein nutzbares Ass, $r_t$ den Running Count, $c_t$ den True Count und $m_t$ die Anzahl verbleibender Karten bezeichnet.
+wobei $p_t$ den Handwert des Spielers, $d_t$ die offene Dealer-Karte,
+$a_t$ ein nutzbares Ass, $r_t$ den Running Count, $c_t$ den True
+Count und $m_t$ die Anzahl verbleibender Karten bezeichnet.
 
 Der Aktionsraum ist binär:
 \begin{equation}
-\mathcal{A}=\{0=\text{Stand},\;1=\text{Hit}\}.
+  \mathcal{A}=\{0=\text{Stand},\;1=\text{Hit}\}.
 \end{equation}
-Double Down, Split, Insurance, Surrender, variable Einsätze und ein gesonderter Natural-Blackjack-Payout sind nicht implementiert. Die Ergebnisse sind deshalb nicht direkt auf vollständige Casino-Regeln übertragbar.
+Double Down, Split, Insurance, Surrender, variable Einsätze und ein
+gesonderter Natural-Blackjack-Payout sind nicht implementiert. Die
+Ergebnisse sind deshalb nicht direkt auf vollständige Casino-Regeln übertragbar.
 
-Der Baseline-Agent beobachtet nur $(p_t,d_t,a_t)$. Aus seiner Perspektive sind Runden mit identischer Hand und Dealer-Karte gleich, obwohl sich die Zusammensetzung des verbleibenden Schlittens unterscheiden kann. Der Counting-Agent erhält eine verdichtete Beschreibung dieser Historie. Seine Repräsentation ist näher an einem Markov-Zustand, bleibt durch Clipping und Aggregation aber ebenfalls unvollständig.
+Der Baseline-Agent beobachtet nur $(p_t,d_t,a_t)$. Aus seiner
+Perspektive sind Runden mit identischer Hand und Dealer-Karte gleich,
+obwohl sich die Zusammensetzung des verbleibenden Schlittens
+unterscheiden kann. Der Counting-Agent erhält eine verdichtete
+Beschreibung dieser Historie. Seine Repräsentation ist näher an einem
+Markov-Zustand, bleibt durch Clipping und Aggregation aber ebenfalls
+unvollständig.
 
 \subsection{Belohnungsfunktion und Erfolgskriterien}
 
 Die Reward-Struktur ist bewusst sparsam:
 \begin{equation}
-R =
-\begin{cases}
-+1, & \text{Gewinn},\\
-0,  & \text{Unentschieden (Push)},\\
--1, & \text{Verlust}.
-\end{cases}
+  R =
+  \begin{cases}
+    +1, & \text{Gewinn},\\
+    0,  & \text{Unentschieden (Push)},\\
+    -1, & \text{Verlust}.
+  \end{cases}
 \end{equation}
-Zwischenschritte erhalten Reward null. Der finale Reward wird durch das Q-Learning-Update auf vorherige Entscheidungen zurückgeführt. Die symmetrische Struktur macht den durchschnittlichen Reward direkt interpretierbar:
+Zwischenschritte erhalten Reward null. Der finale Reward wird durch
+das Q-Learning-Update auf vorherige Entscheidungen zurückgeführt. Die
+symmetrische Struktur macht den durchschnittlichen Reward direkt
+interpretierbar:
 \begin{equation}
-\overline{R}=\text{Win Rate}-\text{Loss Rate}.
+  \overline{R}=\text{Win Rate}-\text{Loss Rate}.
 \end{equation}
 
-Als primäres Erfolgskriterium gilt eine Verbesserung des durchschnittlichen Rewards gegenüber der Baseline bei mehreren Trainings- und Evaluationsseeds. Ergänzend werden eine höhere Win Rate, eine niedrigere Loss Rate, geringe Seed-Streuung sowie ein plausibel verändertes Verhalten in verschiedenen True-Count-Bereichen betrachtet. Der heuristische Richtwert $\overline{R}>-0{,}05$ dient als zusätzliche Orientierung, ist aber keine formale Definition einer gelösten Aufgabe. Ein Vergleich mit einer Zufallsstrategie wurde im finalen Experiment nicht durchgeführt; Aussagen über deren Übertreffen wären daher nicht durch die vorliegenden Daten belegt.
+Als primäres Erfolgskriterium gilt eine Verbesserung des
+durchschnittlichen Rewards gegenüber der Baseline bei mehreren
+Trainings- und Evaluationsseeds. Ergänzend werden eine höhere Win
+Rate, eine niedrigere Loss Rate, geringe Seed-Streuung sowie ein
+plausibel verändertes Verhalten in verschiedenen True-Count-Bereichen
+betrachtet. Der heuristische Richtwert $\overline{R}>-0{,}05$ dient
+als zusätzliche Orientierung, ist aber keine formale Definition einer
+gelösten Aufgabe. Ein Vergleich mit einer Zufallsstrategie wurde im
+finalen Experiment nicht durchgeführt; Aussagen über deren
+Übertreffen wären daher nicht durch die vorliegenden Daten belegt.
 
 \subsection{Tabellarisches Q-Learning}
 
-Q-Learning ist ein modellfreies, off-policy Temporal-Difference-Verfahren. Es schätzt für jedes Zustands-Aktions-Paar den erwarteten diskontierten Return und aktualisiert die Tabelle nach~\cite{watkins1992qlearning}
+Q-Learning ist ein modellfreies, off-policy
+Temporal-Difference-Verfahren. Es schätzt für jedes
+Zustands-Aktions-Paar den erwarteten diskontierten Return und
+aktualisiert die Tabelle nach~\cite{watkins1992qlearning}
 \begin{equation}
-Q(s_t,a_t) \leftarrow Q(s_t,a_t) +
-\alpha\left[r_{t+1}+\gamma\max_{a'}Q(s_{t+1},a')-Q(s_t,a_t)\right].
-\label{eq:qlearning}
+  Q(s_t,a_t) \leftarrow Q(s_t,a_t) +
+  \alpha\left[r_{t+1}+\gamma\max_{a'}Q(s_{t+1},a')-Q(s_t,a_t)\right].
+  \label{eq:qlearning}
 \end{equation}
-Dabei steuert $\alpha$ die Lernrate und $\gamma$ die Gewichtung zukünftiger Rewards. In terminalen Zuständen wird der zukünftige Q-Wert auf null gesetzt.
+Dabei steuert $\alpha$ die Lernrate und $\gamma$ die Gewichtung
+zukünftiger Rewards. In terminalen Zuständen wird der zukünftige
+Q-Wert auf null gesetzt.
 
-Die Aktion wird während des Trainings mit einer $\epsilon$-greedy Policy gewählt. Mit Wahrscheinlichkeit $\epsilon$ wird zufällig exploriert, andernfalls wird die aktuell beste Aktion ausgeführt. Die finale Evaluation ist vollständig greedy. Die klassischen Konvergenzresultate für Q-Learning setzen unter anderem wiederholtes Besuchen aller Zustands-Aktions-Paare und geeignete Lernraten voraus~\cite{watkins1992qlearning}. Da hier eine konstante Lernrate, ein endliches Trainingsbudget und eine stark aggregierte Repräsentation verwendet werden, kann aus einem stabil wirkenden Verlauf allein keine theoretische Konvergenz abgeleitet werden.
+Die Aktion wird während des Trainings mit einer $\epsilon$-greedy
+Policy gewählt. Mit Wahrscheinlichkeit $\epsilon$ wird zufällig
+exploriert, andernfalls wird die aktuell beste Aktion ausgeführt. Die
+finale Evaluation ist vollständig greedy. Die klassischen
+Konvergenzresultate für Q-Learning setzen unter anderem wiederholtes
+Besuchen aller Zustands-Aktions-Paare und geeignete Lernraten
+voraus~\cite{watkins1992qlearning}. Da hier eine konstante Lernrate,
+ein endliches Trainingsbudget und eine stark aggregierte
+Repräsentation verwendet werden, kann aus einem stabil wirkenden
+Verlauf allein keine theoretische Konvergenz abgeleitet werden.
 
 \subsection{Running Count und True Count}
 
-Das Projekt verwendet die Hi-Lo-Zählidee. Sichtbare niedrige Karten von zwei bis sechs erhöhen den Running Count um eins, Karten von sieben bis neun verändern ihn nicht und Zehnwertkarten sowie Asse verringern ihn um eins. Der True Count normiert diese Summe durch die geschätzte Zahl verbleibender Decks:
+Das Projekt verwendet die Hi-Lo-Zählidee. Sichtbare niedrige Karten
+von zwei bis sechs erhöhen den Running Count um eins, Karten von
+sieben bis neun verändern ihn nicht und Zehnwertkarten sowie Asse
+verringern ihn um eins. Der True Count normiert diese Summe durch die
+geschätzte Zahl verbleibender Decks:
 \begin{equation}
-\text{True Count}=\frac{\text{Running Count}}{\max(\text{verbleibende Karten}/52,\;0{,}25)}.
+  \text{True Count}=\frac{\text{Running
+  Count}}{\max(\text{verbleibende Karten}/52,\;0{,}25)}.
 \end{equation}
-Ein positiver True Count weist in klassischen Blackjack-Regeln auf einen relativ hohen Anteil hoher Karten hin. Deren Vorteil entsteht jedoch wesentlich durch Naturals, Double Down und variable Einsätze~\cite{thorp1961favorable}. Da diese Mechanismen in der Projektumgebung fehlen, darf ein positiver True Count hier nicht automatisch mit einem positiven Spielererwartungswert gleichgesetzt werden.
+Ein positiver True Count weist in klassischen Blackjack-Regeln auf
+einen relativ hohen Anteil hoher Karten hin. Deren Vorteil entsteht
+jedoch wesentlich durch Naturals, Double Down und variable
+Einsätze~\cite{thorp1961favorable}. Da diese Mechanismen in der
+Projektumgebung fehlen, darf ein positiver True Count hier nicht
+automatisch mit einem positiven Spielererwartungswert gleichgesetzt werden.

@@ -3,84 +3,130 @@
 
 \subsection{Datenquelle und Trainingsdaten}
 
-Anders als bei überwachten Lernverfahren existiert kein vorab erhobener Datensatz. Sämtliche Übergänge $(s_t,a_t,r_{t+1},s_{t+1})$ entstehen online durch die Interaktion zwischen Agent und selbst implementierter Simulationsumgebung. Die Trainingsdatenverteilung hängt damit von der jeweils aktuellen $\epsilon$-greedy Policy ab. Zu Beginn erzeugt die hohe Exploration vielfältige Übergänge; im späteren Training dominiert zunehmend die gelernte Policy.
+Anders als bei überwachten Lernverfahren existiert kein vorab
+erhobener Datensatz. Sämtliche Übergänge $(s_t,a_t,r_{t+1},s_{t+1})$
+entstehen online durch die Interaktion zwischen Agent und selbst
+implementierter Simulationsumgebung. Die Trainingsdatenverteilung
+hängt damit von der jeweils aktuellen $\epsilon$-greedy Policy ab. Zu
+Beginn erzeugt die hohe Exploration vielfältige Übergänge; im
+späteren Training dominiert zunehmend die gelernte Policy.
 
-Die Verwendung einer Simulation erlaubt eine sehr große Zahl kostengünstiger Episoden und vollständig bekannte Rewards. Sie erzeugt zugleich ein Validitätsrisiko: Der Agent optimiert exakt die implementierten Regeln und kann Modellvereinfachungen ausnutzen, die in einem realen Blackjack-Spiel nicht existieren.
+Die Verwendung einer Simulation erlaubt eine sehr große Zahl
+kostengünstiger Episoden und vollständig bekannte Rewards. Sie
+erzeugt zugleich ein Validitätsrisiko: Der Agent optimiert exakt die
+implementierten Regeln und kann Modellvereinfachungen ausnutzen, die
+in einem realen Blackjack-Spiel nicht existieren.
 
 \subsection{Zustandsrepräsentation und Vorverarbeitung}
 
-Die beiden Agenten unterscheiden sich ausschließlich durch ihren State Encoder. Dadurch lässt sich der Nutzen der zusätzlichen Kontextmerkmale isolierter untersuchen als bei gleichzeitig verschiedenen Lernalgorithmen.
+Die beiden Agenten unterscheiden sich ausschließlich durch ihren
+State Encoder. Dadurch lässt sich der Nutzen der zusätzlichen
+Kontextmerkmale isolierter untersuchen als bei gleichzeitig
+verschiedenen Lernalgorithmen.
 
 \paragraph{Baseline-Agent.}
 Der Baseline-Zustand ist
 \begin{equation}
-s_t^{B}=(p_t,d_t,a_t).
+  s_t^{B}=(p_t,d_t,a_t).
 \end{equation}
-Alle drei Werte werden als Ganzzahlen gespeichert. Die finale Q-Tabelle enthält für jeden Trainingsseed genau 280 beobachtete Zustände.
+Alle drei Werte werden als Ganzzahlen gespeichert. Die finale
+Q-Tabelle enthält für jeden Trainingsseed genau 280 beobachtete Zustände.
 
 \paragraph{Counting-Agent.}
 Der erweiterte Zustand ist
 \begin{equation}
-s_t^{C}=(p_t,d_t,a_t,\tilde r_t,\tilde c_t,\tilde m_t).
+  s_t^{C}=(p_t,d_t,a_t,\tilde r_t,\tilde c_t,\tilde m_t).
 \end{equation}
-Zur Begrenzung des Zustandsraums werden die Zusatzmerkmale diskretisiert. Dabei bezeichnet $\operatorname{trunc}$ die im Code verwendete Ganzzahlumwandlung, die Nachkommastellen gegen null abschneidet:
+Zur Begrenzung des Zustandsraums werden die Zusatzmerkmale
+diskretisiert. Dabei bezeichnet $\operatorname{trunc}$ die im Code
+verwendete Ganzzahlumwandlung, die Nachkommastellen gegen null abschneidet:
 \begin{align}
-\tilde r_t &= \operatorname{trunc}(\operatorname{clip}(r_t,-20,20)),\\
-\tilde c_t &= \operatorname{trunc}(\operatorname{clip}(c_t,-10,10)),\\
-\tilde m_t &= \operatorname{clip}(\lfloor m_t/52\rfloor,0,6).
+  \tilde r_t &= \operatorname{trunc}(\operatorname{clip}(r_t,-20,20)),\\
+  \tilde c_t &= \operatorname{trunc}(\operatorname{clip}(c_t,-10,10)),\\
+  \tilde m_t &= \operatorname{clip}(\lfloor m_t/52\rfloor,0,6).
 \end{align}
-Eine klassische Normalisierung ist für die Q-Tabelle nicht erforderlich, weil keine kontinuierliche Funktion approximiert wird. Das Clipping verhindert seltene Extremwerte, führt aber zu Informationsverlust. Zudem sind Running Count, True Count und verbleibende Decks mathematisch voneinander abhängig. Die Repräsentation enthält somit Redundanz und vergrößert die Tabelle stark.
+Eine klassische Normalisierung ist für die Q-Tabelle nicht
+erforderlich, weil keine kontinuierliche Funktion approximiert wird.
+Das Clipping verhindert seltene Extremwerte, führt aber zu
+Informationsverlust. Zudem sind Running Count, True Count und
+verbleibende Decks mathematisch voneinander abhängig. Die
+Repräsentation enthält somit Redundanz und vergrößert die Tabelle stark.
 
-Am Ende des finalen Trainings enthalten die drei Counting-Tabellen zwischen 113.744 und 113.769 Zustände. Im Mittel sind dies 113.760 und damit rund 406-mal so viele wie bei der Baseline. Nicht besuchte Zustände erhalten implizit Q-Werte von null. Bei Gleichstand wählt \texttt{argmax} die Aktion Stand; diese technische Tie-Break-Regel beeinflusst insbesondere unbekannte oder kaum trainierte Zustände.
+Am Ende des finalen Trainings enthalten die drei Counting-Tabellen
+zwischen 113.744 und 113.769 Zustände. Im Mittel sind dies 113.760
+und damit rund 406-mal so viele wie bei der Baseline. Nicht besuchte
+Zustände erhalten implizit Q-Werte von null. Bei Gleichstand wählt
+\texttt{argmax} die Aktion Stand; diese technische Tie-Break-Regel
+beeinflusst insbesondere unbekannte oder kaum trainierte Zustände.
 
 \subsection{Modellarchitektur}
 
-Es wird kein Deep-Learning-Modell eingesetzt. Die Architektur besteht aus einer Python-\texttt{defaultdict}, die für jeden beobachteten Zustand einen Vektor mit zwei Q-Werten speichert:
+Es wird kein Deep-Learning-Modell eingesetzt. Die Architektur besteht
+aus einer Python-\texttt{defaultdict}, die für jeden beobachteten
+Zustand einen Vektor mit zwei Q-Werten speichert:
 \begin{equation}
-Q(s)=[Q(s,\text{Stand}),Q(s,\text{Hit})].
+  Q(s)=[Q(s,\text{Stand}),Q(s,\text{Hit})].
 \end{equation}
-Neue Zustände werden mit $[0,0]$ initialisiert. Nach jedem Schritt erfolgt genau ein Online-Update gemäß Gleichung~\ref{eq:qlearning}. Es gibt weder Mini-Batches noch Experience Replay oder Target Network. Der Vorteil dieser Architektur ist ihre Nachvollziehbarkeit; ihr Nachteil ist die fehlende Generalisierung zwischen ähnlichen Zuständen.
+Neue Zustände werden mit $[0,0]$ initialisiert. Nach jedem Schritt
+erfolgt genau ein Online-Update gemäß Gleichung~\ref{eq:qlearning}.
+Es gibt weder Mini-Batches noch Experience Replay oder Target
+Network. Der Vorteil dieser Architektur ist ihre Nachvollziehbarkeit;
+ihr Nachteil ist die fehlende Generalisierung zwischen ähnlichen Zuständen.
 
 \subsection{Hyperparameter und Auswahlprozess}
 
-Vor dem finalen Lauf wurden kombinierte Hyperparameterkonfigurationen in drei Stufen getestet. Die Parameter wurden nicht einzeln in einer vollständigen Ablationsstudie variiert; die Ergebnisse zeigen daher eine pragmatische Auswahl, aber kein globales Optimum.
+Vor dem finalen Lauf wurden kombinierte Hyperparameterkonfigurationen
+in drei Stufen getestet. Die Parameter wurden nicht einzeln in einer
+vollständigen Ablationsstudie variiert; die Ergebnisse zeigen daher
+eine pragmatische Auswahl, aber kein globales Optimum.
 
 \begin{table}[H]
-\centering
-\caption{Stufen der Hyperparametersuche}
-\label{tab:tuning_stages}
-\small
-\begin{tabularx}{\textwidth}{lrrrX}
-\toprule
-\textbf{Stufe} & \textbf{Konfigurationen} & \textbf{Trainingsseeds} & \textbf{Training} & \textbf{Greedy Evaluation}\\
-\midrule
-A & 16 & 1 & 3 Mio. Episoden & 150.000 je Checkpoint\\
-B & 8  & 2 & 10 Mio. Episoden & 500.000 je Checkpoint\\
-C & 4 Counting + Baseline & 3 & 20 Mio. Episoden & 1 Mio. je Checkpoint\\
-\bottomrule
-\end{tabularx}
+  \centering
+  \caption{Stufen der Hyperparametersuche}
+  \label{tab:tuning_stages}
+  \small
+  \begin{tabularx}{\textwidth}{lrrrX}
+    \toprule
+    \textbf{Stufe} & \textbf{Konfigurationen} &
+    \textbf{Trainingsseeds} & \textbf{Training} & \textbf{Greedy Evaluation}\\
+    \midrule
+    A & 16 & 1 & 3 Mio. Episoden & 150.000 je Checkpoint\\
+    B & 8  & 2 & 10 Mio. Episoden & 500.000 je Checkpoint\\
+    C & 4 Counting + Baseline & 3 & 20 Mio. Episoden & 1 Mio. je Checkpoint\\
+    \bottomrule
+  \end{tabularx}
 \end{table}
 
-Für den finalen Lauf wurde die Counting-Konfiguration \texttt{c05\_long\_default} ausgewählt. Sie war in Stufe C mit einem mittleren Reward von $-0{,}05259$ die beste Counting-Variante und zeigte mit einer Seed-Standardabweichung von $0{,}00052$ die höchste Stabilität der untersuchten Counting-Konfigurationen. Die Baseline lag bei 20 Millionen Episoden mit $-0{,}04906$ dennoch vorn. Das sprach dafür, dem größeren Counting-Zustandsraum erheblich mehr Training zu geben.
+Für den finalen Lauf wurde die Counting-Konfiguration
+\texttt{c05\_long\_default} ausgewählt. Sie war in Stufe C mit einem
+mittleren Reward von $-0{,}05259$ die beste Counting-Variante und
+zeigte mit einer Seed-Standardabweichung von $0{,}00052$ die höchste
+Stabilität der untersuchten Counting-Konfigurationen. Die Baseline
+lag bei 20 Millionen Episoden mit $-0{,}04906$ dennoch vorn. Das
+sprach dafür, dem größeren Counting-Zustandsraum erheblich mehr
+Training zu geben.
 
 \begin{table}[H]
-\centering
-\caption{Hyperparameter des finalen Trainings}
-\label{tab:hyperparameters}
-\begin{tabularx}{\textwidth}{lX}
-\toprule
-\textbf{Hyperparameter} & \textbf{Wert und Umsetzung}\\
-\midrule
-Lernrate $\alpha$ & $0{,}01$, während des gesamten Trainings konstant\\
-Diskontierungsfaktor $\gamma$ & $0{,}99$\\
-Initiales $\epsilon$ & $1{,}0$\\
-Finales $\epsilon$ & $0{,}10$\\
-$\epsilon$-Decay & Linear über 90\,\% der 100 Mio. Episoden, danach konstant\\
-Trainingsepisoden & 100 Mio. je Agentinstanz\\
-Checkpoint-Intervall & 10 Mio. Episoden\\
-Batch Size & Nicht anwendbar, da Online-Update nach jedem Schritt\\
-\bottomrule
-\end{tabularx}
+  \centering
+  \caption{Hyperparameter des finalen Trainings}
+  \label{tab:hyperparameters}
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Hyperparameter} & \textbf{Wert und Umsetzung}\\
+    \midrule
+    Lernrate $\alpha$ & $0{,}01$, während des gesamten Trainings konstant\\
+    Diskontierungsfaktor $\gamma$ & $0{,}99$\\
+    Initiales $\epsilon$ & $1{,}0$\\
+    Finales $\epsilon$ & $0{,}10$\\
+    $\epsilon$-Decay & Linear über 90\,\% der 100 Mio. Episoden,
+    danach konstant\\
+    Trainingsepisoden & 100 Mio. je Agentinstanz\\
+    Checkpoint-Intervall & 10 Mio. Episoden\\
+    Batch Size & Nicht anwendbar, da Online-Update nach jedem Schritt\\
+    \bottomrule
+  \end{tabularx}
 \end{table}
 
-Die finale Konfiguration wurde für beide Agententypen verwendet, um den Modellvergleich nicht zusätzlich durch unterschiedliche Lernparameter zu verzerren.
+Die finale Konfiguration wurde für beide Agententypen verwendet, um
+den Modellvergleich nicht zusätzlich durch unterschiedliche
+Lernparameter zu verzerren.
