@@ -51,6 +51,10 @@ Das Clipping verhindert seltene Extremwerte, führt aber zu
 Informationsverlust. Zudem sind Running Count, True Count und
 verbleibende Decks mathematisch voneinander abhängig. Die
 Repräsentation enthält somit Redundanz und vergrößert die Tabelle stark.
+Aus 280 Baseline-Zuständen und 471 möglichen Count-Kontexten ergibt sich
+eine encoderbasierte Obergrenze von 131.880 Zuständen der Q-Tabelle; da
+nicht jede Kombination physisch erreichbar sein muss, ist sie keine exakte
+Zustandszahl (siehe Anhang~\ref{sec:counting_upper_bound}).
 
 Am Ende des finalen Trainings enthalten die drei Counting-Tabellen
 zwischen 113.744 und 113.769 Zustände. Im Mittel sind dies 113.760

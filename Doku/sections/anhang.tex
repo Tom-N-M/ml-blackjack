@@ -47,6 +47,65 @@
   \end{tabular}
 \end{table}
 
+\subsection{Herleitung der encoderbasierten Obergrenze}
+\label{sec:counting_upper_bound}
+
+Das Skript enumeriert für plausible nichtterminale Kartenrestmengen die
+zulässigen Running Counts, wendet die Clipping- und Bucket-Regeln des
+Encoders an und zählt je Deck-Bucket eindeutige Paare aus Running- und
+True-Count-Bucket. Die Summe der 471 Count-Kontexte wird anschließend mit
+den 280 Baseline-Zuständen multipliziert.
+
+\begin{table}[H]
+  \centering
+  \caption{Mögliche Count-Kontexte nach Deck-Bucket}
+  \label{tab:count_contexts}
+  \small
+  \begin{tabular}{rr}
+    \toprule
+    \textbf{Deck-Bucket} & \textbf{Count-Kontexte}\\
+    \midrule
+    1 & 131\\
+    2 & 115\\
+    3 & 85\\
+    4 & 73\\
+    5 & 67\\
+    \midrule
+    \textbf{Gesamt} & \textbf{471}\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\clearpage
+\begin{lstlisting}[language=Python,caption={Berechnung der encoderbasierten Obergrenze},label={lst:counting_upper_bound}]
+import numpy as np
+from collections import defaultdict
+
+NUM_DECKS = 6
+SHOE_SIZE = NUM_DECKS * 52
+contexts = defaultdict(set)
+
+for cards_remaining in range(56, 309):
+    deck_bucket = int(cards_remaining // 52)
+    max_abs_rc = min(SHOE_SIZE - cards_remaining, 120, cards_remaining)
+
+    for running_count in range(-max_abs_rc, max_abs_rc + 1):
+        rc_bucket = int(np.clip(running_count, -20, 20))
+        decks_remaining = cards_remaining / 52.0
+        true_count = running_count / decks_remaining
+        tc_bucket = int(np.clip(true_count, -10, 10))
+        contexts[deck_bucket].add((rc_bucket, tc_bucket))
+
+for deck_bucket in sorted(contexts):
+    print(deck_bucket, len(contexts[deck_bucket]))
+
+total_count_contexts = sum(len(values) for values in contexts.values())
+counting_upper_bound = 280 * total_count_contexts
+
+print(total_count_contexts)
+print(counting_upper_bound)
+\end{lstlisting}
+
 \subsection{Reproduktionshinweise}
 
 Das Experiment-Notebook erzeugt die finalen Evaluations-, True-Count-
